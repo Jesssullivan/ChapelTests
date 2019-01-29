@@ -11,7 +11,7 @@ https://turing.plymouth.edu/~kgb1013/?course=4310&project=0
 
 # In a (bash) shell:
 
-'''
+```
 git clone https://github.com/chapel-lang/chapel
 tar xzf chapel-1.18.0.tar.gz
 cd chapel-1.18.0
@@ -23,14 +23,14 @@ make check
 chpl -o hello examples/hello.chpl
 #run the sample program
 ./hello
-'''
+```
 
 # Configure atom editor for chapel
 
-'''
+```
 #if this hasn't already been done:
 cd
 sudo apt-get install atom
 #then get chapel formatting:
 apm install language-chapel
-'''
+```
