@@ -9,7 +9,7 @@ https://chapel-lang.org/docs/users-guide/datapar/forall.html
 Semaphore Project:
 https://turing.plymouth.edu/~kgb1013/?course=4310&project=0
 
-# In a (bash) shell:
+# In a (bash) shell, install Chapel:
 
 ```
 git clone https://github.com/chapel-lang/chapel
