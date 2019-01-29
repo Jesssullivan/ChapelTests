@@ -1,6 +1,8 @@
 # ChapelTests
 For PSU OS course by Kyle Burke
-
+```
+git clone https://github.com/Jesssullivan/ChapelTests
+```
 # Resources:
 
 Chapel docs:
