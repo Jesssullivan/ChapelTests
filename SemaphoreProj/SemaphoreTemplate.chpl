@@ -6,7 +6,7 @@
 */
 	//the number of tokens available
 
-	// removed duplicate numToken Decleration
+	// *removed duplicate numToken Decleration
 
 	var numTokens : atomic int;
 
