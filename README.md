@@ -33,11 +33,12 @@ chpl -o hello examples/hello.chpl
 #if this hasn't already been done:
 cd
 sudo apt-get install atom
+
 # then get chapel formatting:
 apm install language-chapel
-# view/edit template in atom 
-# tbc
 
+# view/edit template in atom 
+atom chapeltests/sephamoreproj/testSemaphore.chpl
 ```
 # Using the Chapel compiler 
 
