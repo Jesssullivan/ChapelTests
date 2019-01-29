@@ -47,7 +47,7 @@ To compile with Chapel:
 chpl [Sephamore].chpl # chpl command is self sufficient
 
 # to run a test (Kyle's testSephamore and personal file):
-chpl [Sephamore].chpl testSephamore.chpl 
+chpl testSephamore.chpl 
 
 # to run a Chapel file:
 ./Sephamore.chpl  # ( ./ is all you need :)
