@@ -1,9 +1,13 @@
 /**
 * Implements a multi-token semaphore.
+* This is a rough template provided through Kyle's instruction
 *
-* Authors: Jess Sullivan
+* Authors: Jess Sullivan, ala Kyle Burke@https://turing.plymouth.edu/~kgb1013/?course=4310&project=0
 */
 	//the number of tokens available
+
+	// removed duplicate numToken Decleration
+
 	var numTokens : atomic int;
 
 	proc Semaphore() {
@@ -30,3 +34,5 @@
 
 		this.x$ = 1;
 	}
+
+	// TBD critical section
