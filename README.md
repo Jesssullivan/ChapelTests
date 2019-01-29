@@ -35,6 +35,9 @@ cd
 sudo apt-get install atom
 # then get chapel formatting:
 apm install language-chapel
+# view/edit template in atom 
+# tbc
+
 ```
 # Using the Chapel compiler 
 
