@@ -31,6 +31,17 @@ chpl -o hello examples/hello.chpl
 #if this hasn't already been done:
 cd
 sudo apt-get install atom
-#then get chapel formatting:
+# then get chapel formatting:
 apm install language-chapel
 ```
+# Using the Chapel compiler 
+
+To compile with Chapel:
+```
+chpl [Sephamore].chpl # chpl command is self sufficient
+
+# to run a test (Kyle's testSephamore and personal file):
+chpl [Sephamore].chpl testSephamore.chpl 
+```
+
+
