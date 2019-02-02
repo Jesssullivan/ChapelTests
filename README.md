@@ -1,5 +1,5 @@
 # ChapelTests
-For PSU OS course by Kyle Burke
+ala PSU OS course by Kyle Burke
 ```
 git clone https://github.com/Jesssullivan/ChapelTests
 ```
@@ -11,9 +11,41 @@ https://chapel-lang.org/docs/users-guide/datapar/forall.html
 Semaphore Project:
 https://turing.plymouth.edu/~kgb1013/?course=4310&project=0
 
-# In a (bash) shell, install Chapel:
+# In a (bash) shell, install Chapel:  
+ Mac or Linux here, others refer to -
+ https://chapel-lang.org/docs/usingchapel/QUICKSTART.html
 
 ```
+# Get some Chapel:
+
+# For Linux bash:
+git clone https://github.com/chapel-lang/chapel
+tar xzf chapel-1.18.0.tar.gz
+cd chapel-1.18.0
+source util/setchplenv.bash
+make
+make check
+
+#For Mac OSX bash:
+git clone https://github.com/chapel-lang/chapel
+cd chapel
+make
+make check
+```
+# Get atom editor for Chapel Language support:
+```
+#Linux bash:
+cd
+sudo apt-get install atom
+apm install language-chapel
+# atom [yourfile.chpl]  # open/make a file with atom
+
+# Mac OSX (download):
+# https://github.com/atom/atom
+# bash for Chapel language support
+apm install language-chapel
+# atom [yourfile.chpl]  # open/make a file with atom
+
 git clone https://github.com/chapel-lang/chapel
 tar xzf chapel-1.18.0.tar.gz
 cd chapel-1.18.0
@@ -27,30 +59,18 @@ chpl -o hello examples/hello.chpl
 ./hello
 ```
 
-# Configure atom editor for chapel
-
-```
-#if this hasn't already been done:
-cd
-sudo apt-get install atom
-
-# then get chapel formatting:
-apm install language-chapel
-
-# view/edit template in atom 
-atom chapeltests/sephamoreproj/testSemaphore.chpl
-```
 # Using the Chapel compiler 
 
 To compile with Chapel:
 ```
-chpl [Sephamore].chpl # chpl command is self sufficient
+chpl MyFile.chpl # chpl command is self sufficient
 
-# to run a test (Kyle's testSephamore and personal file):
-chpl testSephamore.chpl 
+# chpl one file class into another:
+
+chpl -M classFile runFile.chpl 
 
 # to run a Chapel file:
-./Sephamore.chpl  # ( ./ is all you need :)
+./runFile.chpl 
 ```
 
 
