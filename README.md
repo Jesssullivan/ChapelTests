@@ -46,17 +46,6 @@ apm install language-chapel
 apm install language-chapel
 # atom [yourfile.chpl]  # open/make a file with atom
 
-git clone https://github.com/chapel-lang/chapel
-tar xzf chapel-1.18.0.tar.gz
-cd chapel-1.18.0
-source util/setchplenv.bash
-make
-make check
-#- All is from chapel docs - 
-#compile a sample program
-chpl -o hello examples/hello.chpl
-#run the sample program
-./hello
 ```
 
 # Using the Chapel compiler 
