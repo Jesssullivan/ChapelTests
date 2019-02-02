@@ -27,11 +27,8 @@ make
 make check
 
 #For Mac OSX bash:
-git clone https://github.com/chapel-lang/chapel
-cd chapel
-./configure
-make
-make check
+# Just use homebrew
+brew install chapel # :)
 ```
 # Get atom editor for Chapel Language support:
 ```
@@ -62,5 +59,3 @@ chpl -M classFile runFile.chpl
 # to run a Chapel file:
 ./runFile.chpl 
 ```
-
-
