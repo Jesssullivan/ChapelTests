@@ -29,6 +29,7 @@ make check
 #For Mac OSX bash:
 git clone https://github.com/chapel-lang/chapel
 cd chapel
+./configure
 make
 make check
 ```
