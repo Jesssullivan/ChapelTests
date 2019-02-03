@@ -1,5 +1,5 @@
 # ChapelTests
-ala PSU OS course by Kyle Burke
+ala PSU OS course
 ```
 git clone https://github.com/Jesssullivan/ChapelTests
 ```
