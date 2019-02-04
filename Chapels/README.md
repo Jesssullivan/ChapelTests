@@ -13,9 +13,11 @@ Then it automatically opens the easy to read file in nano.
 # it takes two flags- here are the defaults if none are given:
 
 // this is the directory where it starts
+
 --dir= . 
 
 // it will default to going through child directories, "recursive"
+
 --R=true
 
 # These are the blocks:
