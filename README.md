@@ -57,5 +57,5 @@ chpl MyFile.chpl # chpl command is self sufficient
 chpl -M classFile runFile.chpl 
 
 # to run a Chapel file:
-./runFile.chpl 
+./runFile
 ```
