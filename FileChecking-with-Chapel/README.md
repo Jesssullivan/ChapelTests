@@ -15,10 +15,18 @@ Then it automatically opens the easy to read file in nano.
 --R=true // it will default to going through child directories, "recursive"
 
 # These are the blocks:
-are they the same file in same directory?  
-should these be removed automatically?
-are they the same size in any directory?
-generate files of results?
-automatically show the results in nano?
 
-each function / test is a block so one could make some more sophisticated control flow stuff later.
+are any two files the same size in any directory?
+  if so, add them to a suspect list
+
+generate files of results?
+  make a easy to read .txt and a space-seperated .txt, the latter for 
+  possible data crunching later
+
+Do a fine-grain, character level comb of suspect files?  
+  print out results - see files "a" vs "b" in DUPES, this will
+  catch if a difference like 00000001 vs 10000000 in two files
+
+...Tell Human?
+
+Each function is a block so one could make some more sophisticated control flow stuff later.
