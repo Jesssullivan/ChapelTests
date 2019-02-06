@@ -1,82 +1,94 @@
+/**********************************
+Configs: --dir"." --R=true --HumanFile="HumanFile.txt" --SpSepFile="SpSepFile.txt"
+*   WIP by Jess Sullivan
+*   chpl FileCheck.chpl && ./FileCheck # to run this file
+**********************************/
 use FileSystem;
-use Spawn;
-use Time;
-// --flags!  example: --dir=../ --R=false --poof==true //
+
 config const dir = ".";
-config const R : bool=true;  // default will crawl all child dirs
-//config const poof : bool=false; //no print, remove direct dupes
-config const fileF = "Flagged_Dupes.txt";
-config const  fileCSV = "Flagged_Dupes-CSV-VERSION.csv";
-// global vars, counters arrays, and domain "B"
+config const R : bool=true;
+config const HumanFile = "Flagged_Dupes.txt";
+config const  SpSepFile = "SpSepFile.txt";
+
 var listFiles = findfiles(dir, recursive=R);
-var NumFiles, b, c = 0;  // make a few scratch counters
-for string in listFiles do NumFiles += 1;  // NumFiles is... exactly what is sound like
-var i = for i in 1..NumFiles do i;
-var j = for j in 1..NumFiles by-1 do j; // just going a different direction.
-var B : [1..NumFiles,1..NumFiles] int;  // a domain of all options *I THINK* has now been achived
-var FlaggedList, CSVlist = ''; // starting strings, will grow with dupe hits
-// order of operations.  each is a proc() to make control flow easy.
-// nearly identical proc()s are fine, consider them macros?
+var NumFiles = 0;
+var DupeFound, SizeChecked = false;
+var FlaggedList = "";
+var sameSizeFiles : domain((string,string));
+var tmp1, tmp2 : uint(64);  // used for checking at char level in FullCheck()
+var didFile = (".");
+
 proc SizeCheck() {
-  for (i,j) in B.domain {
-    if getFileSize(listFiles[i]) == getFileSize(listFiles[j]) && i != j {  // note i cannot be j!
-      writeln(" file size flagged for ", listFiles[i]," and ", listFiles[j]);
-      // simple and easy use in initList()
-      CSVlist += listFiles[i] + " , " + listFiles[j] + "\n";
-      //  easier to read as proc human()
-      FlaggedList += "Size dupe match found for: " + listFiles[i] + " , " + listFiles[j] + "\r\n";
-    }
-  }
-}
-proc dirFileCheck() {  // eval for literally identical files in same dir
-  forall (i,j) in B.domain {
-    if sameFile(listFiles[i], listFiles[j]) == true && i != j {
-      writeln("found a direct dir dupe between ", listFiles[i],"and ", listFiles[j]);
-    }
-  }
-}
-// because this is uncommon, why not just remove those ASAP?
-proc dirFileForce() {
-  forall (i,j) in B.domain {
-    if sameFile(listFiles[i], listFiles[j]) == true && i != j {
-      remove(listFiles[i]);
-    }
-  }
-}
-proc initList() {
-  //  eval CSVlist for a second entry, which means there is a dupe!
-  if exists(CSVlist[2]) == true {
-    {  // write to some files to make life easier.
-      // this is the human / verbose .txt file
-      var CompFLag = compile(FlaggedList);
-      var FlagFile = open(fileF, iomode.cw);
-      var ChannelF = FlagFile.writer();
-      ChannelF.write(CompFLag);  // file and channel close() is crucial, clean up processes
-      ChannelF.close();  // both must be closed.
-      FlagFile.close();  //  otherwise asking for non-reproducible troubles...?
-      } // using backets in weak attempt to cordon these processes off, ala cobegin
-      {  // this is CSV version obviously
-        var CompCSV = compile(CSVlist);
-        var CSVFile = open(fileCSV, iomode.cw);
-        var ChannelCSV = CSVFile.writer();
-        ChannelCSV.write(CompCSV);
-        ChannelCSV.close();
-        CSVFile.close();
+  writeln("entering SizeCheck");
+  SizeChecked = true;
+  for file1 in listFiles {
+    for file2 in listFiles {
+      if (getFileSize(file1) == getFileSize(file2)) &&
+      (file1 != file2) {
+        DupeFound = true;
+        sameSizeFiles += (file1,file2);
+        FlaggedList += ("Size dupe match found for: " + file1 + " , " + file2 + "\r\n");
       }
     }
-    writeln("no dupes found");
   }
-  proc ShowHuman() {  // open nano to view dupes
-    var openFlagN = spawnshell(["nano "+fileF]);
-    writeln("wrote size dupes to CSV and verbose text!  Opening in... 3 seconds");
-    sleep(2);
-    writeln("opening txt file of dupes!");
-    sleep(1);
-    openFlagN.wait();
+}
+proc FullCheck() {
+  if DupeFound && SizeChecked {
+    writeln("entering FullCheck");
+    for i in (sameSizeFiles) do NumFiles += 1;
+    for (a,b) in sameSizeFiles {
+      if exists(a) && exists(b) && a!=didFile && b!=didFile {
+        var o1 = open(a, iomode.r);
+        var o2 = open(b, iomode.r);
+        writeln("opened "+ a +" and " + b);
+        var tmpRead1 = o1.reader(kind=ionative);
+        var tmpRead2 = o2.reader(kind=ionative);
+        tmpRead1.readln(tmp1);
+        tmpRead2.readln(tmp2);
+        if tmp1 == tmp2 {
+          writeln("Are equal at line / char resolution \n");
+          } else {
+            // see cool results with /CheckCharLevel/a vf /CheckCharLevel/b
+            writeln("Are not equal, are individual files!! \n");
+          }
+          tmpRead1.close();
+          o1.close();
+          tmpRead2.close();
+          o2.close();
+          didFile = (b);  // avoid duplicates
+        }
+      }
+    }
   }
-  // WORK IN PROGRESS:
-  // Control flow:  which processes should be done?
+  proc WriteFiles() {
+    writeln("entering Write files, writing to " + HumanFile +" and "+ SpSepFile);
+    if DupeFound && SizeChecked {
+      {
+        var CompFLag = compile(FlaggedList);
+        var FlagFile = open(HumanFile, iomode.cw);
+        var ChannelF = FlagFile.writer();
+        ChannelF.write(CompFLag);
+        ChannelF.close();
+        FlagFile.close();
+      }
+      {
+        var SP_File = open(SpSepFile, iomode.cw);
+        var ChannelT = SP_File.writer();
+        ChannelT.write(SpSepFile);
+        ChannelT.close();
+        SP_File.close();
+      }
+      writeln("all files written and channels closed.");
+    }
+  }
+  proc ShowHuman() {
+    if DupeFound && SizeChecked {
+      writeln("\n open a txt file to see dupes! open @  " + HumanFile);
+      writeln("  -  Complete - ");
+    }
+  }
+  // TODO : make some kind of control flow
   SizeCheck();
-  dirFileCheck();
-  initList();
+  FullCheck();
+  WriteFiles();
   ShowHuman();
