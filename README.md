@@ -1,5 +1,7 @@
 # ChapelTests
-ala PSU OS course
+
+Repo created in light of a PSU OS course
+
 ```
 git clone https://github.com/Jesssullivan/ChapelTests
 ```
