@@ -43,30 +43,44 @@ proc SizeCheck() : domain((string, string)) {
 proc FullCheck(sameSizeFiles) : ( domain((string, string))  ,  domain((string, string)) ) {
   var same = {("", "")};
   var diff = {("", "")};
+  var lineA : string;
+  var lineB : string;
   if Verb then writeln("entering FullCheck");
   try {
     label filePairLoop for (a, b) in sameSizeFiles {
       if isFile(a) && isFile(b) { // GTS: why needed?
-	if Verb then writeln("opened "+ a +" and " + b);
-	for line1 in open(a, iomode.r).lines() {
-	  if Verb then writeln("line1: "+ line1);
-	  for line2 in open(b, iomode.r).lines() {
-	    if Verb then writeln("line2: "+ line2);
-	    if (line1 == line2) {
-	      if Verb then writeln("equal so far");
-	    } else {		// files differ
-	      if Verb then writeln("differ");
+	var chanA = openreader(a);
+	var chanB = openreader(b);
+	if Verb then writeln("Checking ", a, ", ", b, " line by line.");
+	do {
+	  var gotA = chanA.readline(lineA);
+	  var gotB = chanB.readline(lineB);
+	  if gotA {
+	    if gotB {
+	      if (lineA == lineB) {
+		if Verb then write(".");
+	      } else {		// lines differ
+		if Verb then writeln("Diff (", lineA.strip(), ") != (", lineB.strip(), ")");
+		diff += (a, b);
+		continue filePairLoop;
+	      }
+	    } else {		// gotA but not gotB
+	      if Verb then writeln("Diff: file ", a, " longer than file ", b);
 	      diff += (a, b);
-	      // "(%s, %s)".format(a, b);
-	      if Verb then writeln("Diff: ", a, ", ", b);
+	      continue filePairLoop;
+	    }
+	  } else {		// not gotA
+	    if gotB {		// not gotA but gotB
+	      if Verb then writeln("Diff: file ", a, " shorter than file ", b);
+	      diff += (a, b);
 	      continue filePairLoop;
 	    }
 	  }
-	}
+	} while (gotA && gotB);
+	if Verb then writeln("same: ", a, ", ", b);
 	same += (a, b);
-	// "(%s, %s)".format(a, b);
       }
-    }
+    } // for (a, b) in sameSizeFiles
   } catch {
     runCatch("FullCheck");
   }
