@@ -16,7 +16,7 @@ These programs will recursively run through all directories from where it starts
 ```
 config const R : bool=true;  // recursive or no?
 
-config const Verb : bool=false;  / Verbose output?
+config const Verb : bool=false;  // Verbose output?
 
 config const SameFileOutput = "SameFileOutput.txt";
 
