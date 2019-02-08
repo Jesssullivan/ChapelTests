@@ -3,8 +3,6 @@ To run:
 ```
 # in parallel:
 chpl FileCheckParallel.chpl && ./FileCheckParallel
-# in series:
-chpl FileCheck.chpl && ./FileCheck 
 ```
 
 # Dealing with Dupes in Chapel
@@ -22,3 +20,4 @@ config const SameFileOutput = "SameFileOutput.txt";
 
 config const DiffFileOutput = "DiffFileOutput.txt";
 ```
+# NOTE: Serial version is on the blink
