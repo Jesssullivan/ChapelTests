@@ -2,12 +2,15 @@
 to run:
 
 ```
-chpl FileCheck.chpl && ./FileCheck
+# in parallel:
+chpl FileCheckParallel.chpl && ./FileCheckParallel
+# in series:
+chpl FileCheck.chpl && ./FileCheck 
 ```
 
 # Dealing with Dupes in Chapel
 
-FileCheck will recursively run through all directories from where it starts and make generate two text docs (a .txt file that is easy to read as a human and a space seperated .txt file) for any two files with equal size.  
+These programs will recursively run through all directories from where it starts and make generate two text docs (a .txt file that is easy to read as a human and a space seperated .txt file) for any two files with equal size.  
 
 Then it will go through these suspiciously similar files at the character level and evaluate for any differences.
 
