@@ -26,10 +26,7 @@ Then it will go through these suspiciously similar files at the character level 
 
 --R=true 
 
-// these are the two "file same size" file names it will use for output
-
---HumanFile="Flagged_Dupes.txt"
---SpSepFile="SpSepFile.txt"
+// there are the two file names it will use for output too
 ```
 
 # These are the blocks:
