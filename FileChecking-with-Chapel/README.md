@@ -1,8 +1,10 @@
 To run:
 
 ```
-# in parallel:
+# In Parallel:
 chpl FileCheckParallel.chpl && ./FileCheckParallel
+# Not in Parallel:
+chpl FileCheckSerial.chpl && ./FileCheckSerial
 ```
 
 # Dealing with Dupes in Chapel
@@ -19,5 +21,13 @@ config const Verb : bool=false;  // Verbose output?
 config const SameFileOutput = "SameFileOutput.txt";
 
 config const DiffFileOutput = "DiffFileOutput.txt";
+
 ```
-# NOTE: Serial version is on the blink
+# General notes:
+
+```
+Serial version is tentatively working again
+
+```
+
+The  
