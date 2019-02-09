@@ -5,16 +5,17 @@
 **********************************/
 use FileSystem;
 use Time;
+var SpeedTestP: Timer;
+
 config const dir = ".";
 config const R : bool=true;
 config const Verb : bool=false;
-config const SameFileOutput = "SameFileOutput.txt";
-config const DiffFileOutput = "DiffFileOutput.txt";
+config const SameFileOutput = "SameFileOutputParallel.txt";
+config const DiffFileOutput = "DiffFileOutputParallel.txt";
 // some vars are easier to use in the global space, at the momment
 var sameSizeFiles = {("", "")};
 var Caught, counted = 0;
 var atomicElbow : atomic int; // Used as a counter.
-var SpeedTestP: Timer;  // timed during run in paraRun()
 // catch small errors- walkdirs is not very smart
 proc runCatch(s : string) {
   Caught += 1;
@@ -22,7 +23,7 @@ proc runCatch(s : string) {
 }
 //  folder will be used to speed up SizeCheck()
 //  for each dir found in listdirs at run, start a new thread doing that folder only
-proc SizeCheck(folder) : int {
+proc SizeCheck(folder) {
   var listFiles = findfiles(folder);
   try {
     for file1 in listFiles {
@@ -36,7 +37,6 @@ proc SizeCheck(folder) : int {
     } catch {
       runCatch("SizeCheck");
     }
-    return 1;
   }
   // global vars seem to make coforall / parallel simpler- unclear what
   // other way to do this, with minimal hassle
@@ -45,7 +45,7 @@ proc SizeCheck(folder) : int {
   var same : domain((string,string));
   var diff : domain((string,string));
   //  check at char level
-  proc FullCheck(a,b) : int {
+  proc FullCheck(a,b) {
     var lineA : string;
     var lineB : string;
     atomicElbow.sub(1); // at zero, break
@@ -80,11 +80,10 @@ proc SizeCheck(folder) : int {
               } catch {
                 runCatch("FullCheck");
               }
-              return 1;
             }
             // write only need be called once, after all tests are run.
             // same and diff should be available globally.
-            proc WriteFiles() : int {
+            proc WriteFiles() {
               var FlagFile = open(SameFileOutput, iomode.cw);
               var SP_File = open(DiffFileOutput, iomode.cw);
               var ChannelF = FlagFile.writer();
@@ -95,7 +94,6 @@ proc SizeCheck(folder) : int {
               ChannelT.write(diff);
               ChannelT.close();
               SP_File.close();
-              return 1;
             }
             proc paraRun() {
               writeln("starting timer in FileCheckParallel");
