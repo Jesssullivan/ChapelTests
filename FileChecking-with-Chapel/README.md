@@ -29,5 +29,3 @@ config const DiffFileOutput = "DiffFileOutput.txt";
 Serial version is tentatively working again
 
 ```
-
-The  
