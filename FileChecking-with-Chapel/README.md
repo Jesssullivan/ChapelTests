@@ -2,31 +2,30 @@ To run:
 
 ```
 # In Parallel:
-chpl FileCheckParallel.chpl && ./FileCheckParallel
+chpl FileCheck.chpl && ./FileCheck
 ```
 
 # Dealing with Dupes in Chapel
 
-These programs will recursively run through all directories from where it starts and generates two text docs, one of same size, same file and another of same size, different file.
+This program will recursively run through all directories from where it starts and generates two text docs, one of same size, same file and another of same size, different file.
 
 # it takes four "--flags" : here are the defaults if none are given:
 
 ```
-config const R : bool=true;  // recursive or no?
-
-config const Verb : bool=false;  // Verbose output?
-
-config const SameFileOutput = "SameFileOutput.txt";
-
-config const DiffFileOutput = "DiffFileOutput.txt";
-
+//
+config const dir = ".";  // starting dir
+config const R : bool=true; // enable recursive?
+config const V : bool=false; // verbose output?
+config const S : bool=false;  // override parallel, use Serial looping?
+config const TXT : bool=true;  // use CSV out?
+config const SAME = "SameDupeOut";
+config const DIFF = "DiffDupeOut";
+//
 ```
 # General notes:
 
 ```
-Parallel version is tentatively working again
-...
-Serial version, not really
-# Not in Parallel:
-chpl FileCheckSerial.chpl && ./FileCheckSerial
+both Serial and Parallel versions are merged to FileCheck.Chpl
+use --S=true to toggle between them
+
 ```
