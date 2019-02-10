@@ -3,8 +3,6 @@ To run:
 ```
 # In Parallel:
 chpl FileCheckParallel.chpl && ./FileCheckParallel
-# Not in Parallel:
-chpl FileCheckSerial.chpl && ./FileCheckSerial
 ```
 
 # Dealing with Dupes in Chapel
@@ -26,6 +24,9 @@ config const DiffFileOutput = "DiffFileOutput.txt";
 # General notes:
 
 ```
-Serial version is tentatively working again
-
+Parallel version is tentatively working again
+...
+Serial version, not really
+# Not in Parallel:
+chpl FileCheckSerial.chpl && ./FileCheckSerial
 ```
