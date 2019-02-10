@@ -9,7 +9,7 @@ chpl FileCheck.chpl && ./FileCheck
 
 This program will recursively run through all directories from where it starts and generates two text docs, one of same size, same file and another of same size, different file.
 
-# it takes four "--flags" : here are the defaults if none are given:
+# it takes the following "--flags" : here are the defaults if none are given:
 
 ```
 //
