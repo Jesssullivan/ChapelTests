@@ -1,0 +1,1 @@
+{(./archive/DUPES/DUPES/FileChecka.chpl, ./archive/DUPES/FileChecka.chpl), (./ExpectedOutput/SameDupeOutSerial.txt, ./ExpectedOutput/SameDupeOutParallel.txt)}
