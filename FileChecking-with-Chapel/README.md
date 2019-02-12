@@ -14,18 +14,17 @@ This program will recursively run through all directories from where it starts a
 ```
 //
 config const dir = ".";  // starting dir
-config const R : bool=true; // enable recursive?
 config const V : bool=false; // verbose output?
 config const S : bool=false;  // override parallel, use Serial looping?
-config const TXT : bool=true;  // use CSV out?
-config const SAME = "SameDupeOut";
-config const DIFF = "DiffDupeOut";
+config const ext : ".txt" 
 //
 ```
 # General notes:
 
 ```
 both Serial and Parallel versions are merged to FileCheck.Chpl
-use --S=true to toggle between them
-
+use --S to toggle between them
+reading files in parrallel is completely broken at the moment
+ - frequently will get unsynced results, if any (each run has different results)
+ :(
 ```
