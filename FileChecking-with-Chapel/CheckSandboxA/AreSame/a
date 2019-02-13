@@ -1,6 +1,0 @@
-01
-1
-10
-1
-"files a & b are different at char level, but will read as same. 
- FileCheck reads to line level."
