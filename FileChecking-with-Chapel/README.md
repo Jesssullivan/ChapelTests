@@ -22,9 +22,25 @@ config const ext : ".txt"
 # General notes:
 
 ```
-both Serial and Parallel versions are merged to FileCheck.Chpl
-use --S to toggle between them
-reading files in parrallel is completely broken at the moment
- - frequently will get unsynced results, if any (each run has different results)
- :(
+preforming an initial SizeCheck in parallel may not be an option.
+
+parallelFullCheck(): fixed varied results, but very slow due to serial SizeCheck bottleneck.
+
 ```
+From inside FileCheck.chpl on use of classes: 
+
+"class Gate is a generic way to maintain thread safety
+while a coforall loop tries to update one domain with
+many threads and new keys {("", "")} to enter. a new borrowed
+Gate class is made per set of keys that need to be managed.
+:)
+Safety is  achieved with the Gate.keeper() syncing its
+"keys" - a generic domain- any of those kept in module Fs-
+...only while inside a Cabinet!  See below for class Cabinet."
+
+"class Cabinet manages dupe evaluation functions.
+this is a generic way to maintain thread safety by not only sandboxing
+the read/write operations to a domain, but all evaluations.
+class Gate is use inside each Cabinet to preform the actual domain transactions.
+a new borrowed Cabinet is created with each set of keys
+(e.g. with any function that needs to operate on a domain)"
