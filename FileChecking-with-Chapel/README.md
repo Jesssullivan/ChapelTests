@@ -31,10 +31,10 @@ From inside FileCheck.chpl on use of classes:
 
 "class Gate is a generic way to maintain thread safety
 while a coforall loop tries to update one domain with
-many threads and new keys {("", "")} to enter. a new borrowed
+many threads and new keys {("", "")}. a new borrowed
 Gate class is made per set of keys that need to be managed.
 :)
-Safety is  achieved with the Gate.keeper() syncing its
+Safety is (tentatively) achieved with the Gate.keeper() syncing its
 "keys" - a generic domain- any of those kept in module Fs-
 ...only while inside a Cabinet!  See below for class Cabinet."
 
