@@ -6,131 +6,196 @@
 **********************************/
 use FileSystem;
 use Time;
-//use DateTime;
 var SpeedTest: Timer;
 
 config const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
 config const SAME = "SAME";
 config const DIFF = "DIFF";
-config const ext = ".txt";  // use alternative ext?
-
 // add extra debug options
 config const V : bool=false; // Vebose output of actions
-config const debug : bool=false;  // add inside loop read out?
-
+config const ext = ".txt";  // use alternative ext?
 // Use module Fs to isolate domains during coforall looping.
-// these domains are only modified via the GateKeeper() sync function.
-module Fs {  // FileKeeper module, accessed as "keys" in GateKeeper()
+// these domains are only modified with a Gate and Cabinet class.
+module Fs {
   var sameSizeFiles = {("", "")};
   var same = {("", "")};
   var diff = {("", "")};
 }
-//    add a per-function try-catch counter.  Uses atomic due to thread possible
-//    "thread collisions", don't want the error counter to also be wrong.
+// add a per-function try-catch counter.
 proc runCatch(function : string) {
-  if V then writeln("Caught another error(s), from ", function);
+  if V then writeln("Caught another error, from ", function);
 }
- // keys() is a generic way to
- // maintain thread safety while a coforall tries to update one domain
- // with multiple threads / strings.
-
-var keys : domain((string,string));
-proc keeper(ref keys, (a,b), atom, s$) {
- do {
-   s$;
- } while atom.read() < 1;
-  s$.writeXF(true);
-  atom.sub(1);
-  keys += (a,b);
-  s$.writeXF(true);
-  atom.add(1);
-}
-// SizeCheck() is a generic function that can be run in Serial or Parrallel.
-// it takes a folder and its files as an iterator
-proc SizeCheck((a,b), used, atom, s$) {
-      if debug then writeln("looping in", used);
-      try {
-      if (getFileSize(a) == getFileSize(b)) &&
-      (a != b)  {
-        keeper(Fs.sameSizeFiles, (a,b), atom, s$);
-        }
-      } catch {
-        runCatch(used);
-      }
-    }
-proc parallelSizeCheck() {
-  var PSCtomic : atomic int;
-  PSCtomic.add(1);
-  var PSCsync$ : sync bool;
-  PSCsync$.writeXF(true);
-    coforall folder in walkdirs(dir) {
-      for a in findfiles(folder) {
-        for b in findfiles(folder) {
-        SizeCheck((a,b), "parallelSizeCheck", PSCtomic, PSCsync$);
-      }
-    }
-  }
-}
-
-proc serialSizeCheck() {
-  var SSCtomic : atomic int;
-  SSCtomic.add(1);
-  var SSCsync$ : sync bool;
-  SSCsync$.writeXF(true);
-  for (a,b) in findfiles(dir) {
-  SizeCheck((a,b), "serialSizeCheck", SSCtomic, SSCsync$);
-  }
-}
-// add arbitrary (and different) types to use while reading files
-//  var lineU : uint;
-//  var lineI : uint;
-var lineA : string;
-var lineB : string;
-// FullCheck() is a generic function that can be run in Serial or Parrallel.
-// it takes files (a,b) from Fs.sameSizeFiles and evaluates each file line by line.
-proc FullCheck((a,b), used, atom, s$) {
-    if isFile(a) && isFile(b) && exists(a) && exists(b) {
-          try {
-    var tmpRead1 = openreader(a);
-    var tmpRead2 = openreader(b);
-    //  ????????????????????
+/*
+class Gate is a generic way to maintain thread safety
+while a coforall loop tries to update one domain with
+many threads and new keys {("", "")} to enter. a new borrowed
+Gate class is made per set of keys that need to be managed.
+:)
+Safety is  achieved with the Gate.keeper() syncing its
+"keys" - a generic domain- any of those kept in module Fs-
+...only while inside a Cabinet!  See below for class Cabinet.
+*/
+class Gate {
+  var D$ : sync bool=true;
+  proc keeper(ref keys, (a,b)) {
+    D$.writeXF(true);
+    if V then writeln("waiting on D$");
     do {
-      tmpRead1.readln(lineA);
-      tmpRead2.readln(lineB);
-      } while lineA == lineB;
-      if lineA != lineB {
-        keeper(Fs.diff, (a,b), atom, s$);
-      } else {
-      keeper(Fs.same, (a,b), atom, s$);
+      D$;
+     } while D$.readXX() != true;
+     D$.writeXF(false);
+     keys += (a,b);
+     D$.writeXF(true);
     }
-    //  ????????????????????
-    if debug then writeln(used + "wrote "+a+" and "+ b +"  to "+ Fs.diff);
-      tmpRead1.close();
-      tmpRead2.close();
-      } catch {
-        runCatch(used);
+  }
+/*
+class Cabinet manages dupe evaluation functions.
+this is a generic way to maintain thread safety by not only sandboxing
+the read/write operations to a domain, but all evaluations.
+class Gate is use inside each Cabinet to preform the actual domain transactions.
+a new borrowed Cabinet is created with each set of keys
+(e.g. with any function that needs to operate on a domain)
+*/
+class Cabinet {
+  var c$ : sync bool=true;
+  proc SizeEval(Gate, (a,b)) {
+    c$.writeXF(true);
+    do {
+      c$;
+      if V then writeln("waiting @ c$");
+     } while c$.readXX() != true;
+    if V then writeln("in SizeEval");
+    if (getFileSize(a) == getFileSize(b)) &&
+      a != b {
+        c$.writeXF(false);
+        Gate.keeper(Fs.sameSizeFiles, (a,b));
+        c$.writeXF(true);
+        if V then writeln(a,b);
+      }
+      c$.writeXF(true);
+    }
+  proc ReadWriteManager(Gate, ref lineA, ref lineB, (a,b)) {
+    if V then writeln("in ReadWriteManager");
+    c$.writeXF(true);
+    do {
+      c$;
+      if V then writeln("waiting @ c$, blocking");
+     } while c$.readXX() != true;
+     c$.writeXF(false);
+     if V then writeln("preformed c$.writeXF(0) - should block");
+     try {
+     var tmpRead1 = openreader(a);
+     var tmpRead2 = openreader(b);
+     tmpRead1.readln(lineA);
+     tmpRead2.readln(lineB);
+     if lineA != lineB {
+       if V then writeln("diffs " +lineA+ " and " +lineB);
+       if (a,b) != (b,a) {
+         Gate.keeper(Fs.diff, (a,b));
+         c$.writeXF(true);
+       }
+       if V then writeln("preformed c$.writeXF(1);");
+     } else {
+       if V then writeln("sames " +lineA+ " and " +lineB);
+       if (a,b) != (b,a) {
+       Gate.keeper(Fs.same, (a,b));
+       c$.writeXF(true);
+     }
+       if V then writeln("preformed c$.writeXF(1);");
+     }
+      c$.writeXF(true);
+       tmpRead1.close();
+       tmpRead2.close();
+     } catch {
+        runCatch("ReadWriteManager");
+      }
+   }
+ }
+  // SizeCheck() functions must be thread safe...
+  /********
+proc parallelSizeCheck() {
+  if V then writeln("in parallelSizeCheck");
+  var paraGate = new borrowed Gate;
+  var ParaCab = new borrowed Cabinet;
+    coforall folder in walkdirs(dir) {
+      //
+      this presents a problem.  findfiles is slow, and this way is fast
+      because it will create a new task per folder in walkdirs().
+      this also means it will not find dupes that live in different
+      folders.  default for both SerialRun and paraRun is to size check in
+      serial.
+       //
+      for a in findfiles(folder, recursive=false) {
+        for b in findfiles(folder, recursive=false) {
+        try {
+          ParaCab.SizeEval(paraGate, (a,b));
+        } catch {
+          runCatch("parallelSizeCheck");
+          }
+        }
       }
     }
   }
+********/
+
+// default method
+proc serialSizeCheck() {
+  if V then writeln("in serialSizeCheck");
+  var serialGate = new borrowed Gate;
+  var serialCab = new borrowed Cabinet;
+  var listall = findfiles(dir, recursive=true);
+    for a in listall {
+      for b in listall {
+      try {
+        serialCab.SizeEval(serialGate, (a,b));
+      } catch {
+        runCatch("serialSizeCheck");
+      }
+    }
+  }
+}
+// FullCheck() functions must be thread safe.
 proc parallelFullCheck() {
-  var PFCtomic : atomic int;
-  PFCtomic.add(1);
-  var PFCsync$ : sync bool;
-  PFCsync$.writeXF(true);
+  if V then writeln("in parallelFullCheck");
+  var paraFullGate = new borrowed Gate;
+  var paraCabinet = new borrowed Cabinet;
   coforall (a,b) in Fs.sameSizeFiles {
-    FullCheck((a,b), "parallelFullCheck", PFCtomic, PFCsync$);
+    var lineA : string;
+    var lineB : string;
+    for a in (a,b) {
+      for b in (a,b) {
+        if isFile(a) && isFile(b) &&
+        exists(a) && exists(b) &&
+        a != b {
+          try {
+            paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
+            } catch {
+              runCatch("parallelFullCheck");
+            }
+          }
+        }
+      }
+    }
   }
-}
 proc serialFullCheck() {
-  var SFCtomic : atomic int;
-  SFCtomic.add(1);
-  var SFCsync$ : sync bool;
-  SFCsync$.writeXF(true);
+  if V then writeln("in serialFullCheck");
+  var serialFullGate = new borrowed Gate;
+  var serialCabinet = new borrowed Cabinet;
   for (a,b) in Fs.sameSizeFiles {
-    FullCheck((a,b), "serialSizeCheck", SFCtomic, SFCsync$);
+        var lineX : string;
+        var lineY : string;
+        if isFile(a) && isFile(b) &&
+        exists(a) && exists(b) &&
+        a != b {
+        try {
+          serialCabinet.ReadWriteManager(serialFullGate, lineX, lineY, (a,b));
+          } catch {
+          runCatch("serialFullCheck");
+        }
+      }
+    }
   }
-}
 // configure a naming scheme, used more if dates / zip are going to be a thing
 proc NameScheme(name : string) : string {
   var RunName : string;
@@ -142,9 +207,7 @@ proc NameScheme(name : string) : string {
     }
       return RunName+name+ext;
     }
-// writers:  Aside from disk being vastly slower than...! and there is not a
-// good reason, Why not have a parallel here too?
-// gatekeeper is not needed, there are two seperate domains and two seperate files to write.
+// generic write function for either domain
 proc WriteAll(N : string, content) {
   var OFile = open(NameScheme(N), iomode.cw);
   var Ochann = OFile.writer();
@@ -152,6 +215,8 @@ proc WriteAll(N : string, content) {
   Ochann.close();
   OFile.close();
 }
+// could write in parrallel
+//no real need (write to disk is way slower than threads)
 proc serialWrite() {
   WriteAll(SAME, Fs.same);
   WriteAll(DIFF, Fs.diff);
@@ -176,7 +241,10 @@ proc paraRun() {
   writeln("starting FileCheck in Parallel, beginning timer...");
   SpeedTest.start();
   if V then writeln("entering SizeCheck()");
-  parallelSizeCheck();
+  //  parallelSizeCheck() needs a smart thing, can't check dupes in different dirs
+  // .....yet
+  //  parallelFullCheck();
+    serialSizeCheck();
   if V then writeln("Completed SizeCheck() \n" +
   " entering FullCheck()");
   parallelFullCheck();
@@ -187,7 +255,7 @@ proc paraRun() {
   writeln("Parallel FileCheck completed in " +
   SpeedTest.elapsed());
 }
-//  call an above setup.
+// call an above setup.
 if S {
   SerialRun();
   } else {
