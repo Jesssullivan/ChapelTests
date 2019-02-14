@@ -11,31 +11,49 @@ This program will recursively run through all directories from where it starts a
 
 # it takes the following "--flags" : here are the defaults if none are given:
 
+example:  
+```
+./FileCheck --S --V
+```
+...Will run a Serial FileCheck with Verbose Logging.
+
+Flags:
 ```
 //
-config const dir = ".";  // starting dir
-config const V : bool=false; // verbose output?
-config const T : atomic int // task in sync$ classes - should stay at 1 for now 
 config const S : bool=false;  // override parallel, use Serial looping?
-config const ext : ".txt" 
+config const dir = "."; // start here?
+// extra debug options
+config const V : bool=false; // Vebose output of actions
+config const ext = ".txt";  // use alternative ext?
+config const SAME = "SAME";
+config const DIFF = "DIFF";
 //
 ```
 # General notes:
 
-From inside FileCheck.chpl on use of classes: 
+From inside FileCheck.chpl on use of classes - see below for snippets:
 
-"class Gate is a generic way to maintain thread safety
-while a coforall loop tries to update one domain with
-many threads and new keys {("", "")}. a new borrowed
-Gate class is made per set of keys that need to be managed.
-:)
-Safety is (tentatively) achieved with the Gate.keeper() syncing its
-"keys" - a generic domain- any of those kept in module Fs-
-...only while inside a Cabinet!  See below for class Cabinet."
+Class Gate is a generic way to maintain thread safety while a coforall loop tries to update one domain (```ref keys```) with many live threads and new entries ```{("", "")}```.  A new borrowed Gate class is made per function that need to be operate on a domain, with the "Gate.keeper".
 
-"class Cabinet manages dupe evaluation functions.
-this is a generic way to maintain thread safety by not only sandboxing
-the read/write operations to a domain, but all evaluations.
-class Gate is use inside each Cabinet to preform the actual domain transactions.
-a new borrowed Cabinet is created with each set of keys
-(e.g. with any function that needs to operate on a domain)"
+Safety is (tentatively) achieved with the Gate.keeper() syncing its "keys" - a generic domain from within module "Fs" - with a Sync$ variable used in concert with an atomic integer that may be 1 or 0 - open or closed - pass or wait.  
+
+Class Cabinet manages the dupe evaluation.  this is a generic way to maintain thread safety by not only sandboxing the read/write operations to a domain, but all evaluations.  class Gate is use inside each Cabinet to preform the actual domain transactions. 
+```
+//  Chapel-Language, annotated //
+
+class Gate {
+  var D$ : sync bool=true; 
+  proc keeper(ref keys, (a,b)) {
+    var Duo : atomic int;   
+    Duo.write(1);          // init lock as "open"
+    D$.writeXF(true);     // init sync as "open"
+    do {
+      D$;              // wait, read varible while wew wait
+     } while Duo.read() < 1;  
+     D$.writeXF(true);   // re open sync
+     Duo.sub(1);        // lock, preforming a domain transaction
+     keys += (a,b);
+     Duo.add(1);      // re open lock
+    }
+  }
+```
