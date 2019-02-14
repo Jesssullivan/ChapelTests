@@ -7,11 +7,10 @@
 use FileSystem;
 use Time;
 var SpeedTest: Timer;
-
+config const T : int = 8; // default min thread?
 config const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
 // add extra debug options
-config const T : int = 30; // default min thread?
 config const V : bool=false; // Vebose output of actions
 config const ext = ".txt";  // use alternative ext?
 config const SAME = "SAME";
@@ -30,41 +29,47 @@ proc runCatch(function : string) {
 class Gate {
   var D$ : sync bool=true;
   proc keeper(ref keys, (a,b)) {
+    var tasks : atomic int;
+    tasks.write(T);
     D$.writeXF(true);
     if V then writeln("waiting on D$");
     do {
       D$;
-     } while D$.readXX() != true;
-     D$.writeXF(false);
-     keys += (a,b);
+     } while tasks.read() < 1;
      D$.writeXF(true);
+     tasks.sub(1);
+     keys += (a,b);
+     tasks.add(1);
     }
   }
 class Cabinet {
   var c1$ : sync bool=true;
-  var c2$ : sync bool=true;
   var c3$ : sync bool=true;
   // this method adds filenames to a domain
   proc UpdateMasterDom(Gate, (a,b)) {
+    var SGDtasks : atomic int;
+    SGDtasks.write(T);
     c1$.writeXF(true);
     do {
       c1$;
-      if V then writeln("waiting @ c$");
-     } while c1$.readXX() != true;
+      if V then writeln("waiting @ c1$");
+      } while SGDtasks.read() < 1;
       if V then writeln("in UpdateMasterDom");
-          c1$.writeXF(false);
+          SGDtasks.sub(1);
           Fs.MasterDom += (a,b);
+          SGDtasks.add(1);
           c1$.writeXF(true);
         }
   proc ReadWriteManager(Gate, ref lineA, ref lineB, (a,b)) {
     if V then writeln("in ReadWriteManager");
+    var PFCtasks : atomic int;
+    PFCtasks.write(T);
     c3$.writeXF(true);
     do {
       c3$;
-      if V then writeln("waiting @ c$, blocking");
-     } while c3$.readXX() != true;
-     c3$.writeXF(false);
-     if V then writeln("preformed c$.writeXF(0) - should block");
+      if V then writeln("waiting @ c3$, blocking");
+      } while PFCtasks.read() < 1;
+     PFCtasks.sub(1);
      try {
      var tmpRead1 = openreader(a);
      var tmpRead2 = openreader(b);
@@ -73,42 +78,32 @@ class Cabinet {
      if lineA != lineB {
      if V then writeln("diffs " +lineA+ " and " +lineB);
          Gate.keeper(Fs.diff, (a,b));
+         PFCtasks.add(1);
          c3$.writeXF(true);
          } else {
            if V then writeln("sames " +lineA+ " and " +lineB);
              Gate.keeper(Fs.same, (a,b));
+             PFCtasks.add(1);
              c3$.writeXF(true);
            }
-           c3$.writeXF(true);
             tmpRead1.close();
             tmpRead2.close();
+            c3$.writeXF(true);
          } catch {
         runCatch("ReadWriteManager");
+        c3$.writeXF(true);
       }
+      c3$.writeXF(true);
    }
  }
-proc ParaGenerateDom() {
-  var paraGenDomGate = new borrowed Gate;
-  var paraGenDomCab = new borrowed Cabinet;
-  coforall Banana in 1..#T {
-      for a in findfiles(dir, recursive=true) {
-        for b in findfiles(dir, recursive=true) {
-          try {
-            paraGenDomCab.UpdateMasterDom(paraGenDomGate, (a,b));
-          } catch {
-            runCatch("ParaGenerateDom");
-          }
-        }
-      }
-    }
-  }
+var files = for i in findfiles(dir, recursive=true) do i;
 proc SerialGenerateDom() {
   var SerialGenDomGate = new borrowed Gate;
   var SerialGenDomCab = new borrowed Cabinet;
-      for a in findfiles(dir, recursive=true) {
-        for b in findfiles(dir, recursive=true) {
-          try {
-            SerialGenDomCab.UpdateMasterDom(SerialGenDomGate, (a,b));
+      for a in files {
+        for b in files {
+        try {
+      SerialGenDomCab.UpdateMasterDom(SerialGenDomGate, (a,b));
           } catch {
             runCatch("SerialGenerateDom");
           }
@@ -119,44 +114,48 @@ proc parallelFullCheck() {
   if V then writeln("in parallelFullCheck");
   var paraFullGate = new borrowed Gate;
   var paraCabinet = new borrowed Cabinet;
-  coforall Banana in 1..#T {
-      coforall (a,b) in Fs.MasterDom {
-        var lineA : string;
-        var lineB : string;
-        if exists(a) && exists(b) && a != b {
-          if isFile(a) && isFile(b) {
-            if getFileSize(a) == getFileSize(b) {
-              try {
-                paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
-                } catch {
-                  runCatch("parallelFullCheck");
+    coforall task in Fs.MasterDom {
+        for a in files {
+          for b in files {
+            var lineA : string;
+            var lineB : string;
+              if exists(a) && exists(b) && a != b {
+                if isFile(a) && isFile(b) {
+                  if getFileSize(a) == getFileSize(b) {
+                    try {
+                      paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
+                      } catch {
+                        runCatch("parallelFullCheck");
+                    }
+                  }
                 }
               }
             }
           }
         }
       }
-    }
 proc serialFullCheck() {
+  var SFCtasks : atomic int;
+  SFCtasks.write(T);
   if V then writeln("in serialFullCheck");
   var serialFullGate = new borrowed Gate;
   var serialCabinet = new borrowed Cabinet;
   for (a,b) in Fs.MasterDom {
     var lineX : string;
     var lineY : string;
-        if exists(a) && exists(b) && a != b {
-          if isFile(a) && isFile(b) {
-            if getFileSize(a) == getFileSize(b) {
-              try {
-                serialCabinet.ReadWriteManager(serialFullGate, lineX, lineY, (a,b));
-                } catch {
-                  runCatch("serialFullCheck");
-                }
+    if exists(a) && exists(b) && a != b {
+      if isFile(a) && isFile(b) {
+        if getFileSize(a) == getFileSize(b) {
+          try {
+              serialCabinet.ReadWriteManager(serialFullGate, lineX, lineY, (a,b));
+              } catch {
+                runCatch("serialFullCheck");
               }
             }
           }
         }
       }
+    }
 // configure a naming scheme, used more if dates / zip are going to be a thing
 proc NameScheme(name : string) : string {
   var RunName : string;
@@ -198,7 +197,7 @@ if S {
     } else {
     writeln("starting FileCheck in Parallel, started timer...");
     writeln("doing paraGenerateDom()");
-    ParaGenerateDom();
+    SerialGenerateDom();
     //ParaGenerateDom();
     if V then writeln("entering FullCheck()");
     parallelFullCheck();
