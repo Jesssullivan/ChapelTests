@@ -7,7 +7,7 @@
 use FileSystem;
 use Time;
 var SpeedTest: Timer;
-config const T : int = 8; // default min thread?
+config const T : int = 1; // default min thread?
 config const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
 // add extra debug options
@@ -26,6 +26,20 @@ module Fs {
 proc runCatch(function : string) {
   if V then writeln("Caught another error, from ", function);
 }
+// get files
+var files = for i in findfiles(dir, recursive=true) do i;
+//
+proc readEval(ref lineA, ref lineB, (a,b)) {
+  try {
+    var tmpRead1 = openreader(a);
+    var tmpRead2 = openreader(b);
+    tmpRead1.readln(lineA);
+    tmpRead2.readln(lineB);
+    } catch {
+      runCatch("readEval()");
+    }
+    return (lineA,lineB);
+  }
 class Gate {
   var D$ : sync bool=true;
   proc keeper(ref keys, (a,b)) {
@@ -70,11 +84,7 @@ class Cabinet {
       if V then writeln("waiting @ c3$, blocking");
       } while PFCtasks.read() < 1;
      PFCtasks.sub(1);
-     try {
-     var tmpRead1 = openreader(a);
-     var tmpRead2 = openreader(b);
-     tmpRead1.readln(lineA);
-     tmpRead2.readln(lineB);
+     readEval(lineA, lineB, (a,b));
      if lineA != lineB {
      if V then writeln("diffs " +lineA+ " and " +lineB);
          Gate.keeper(Fs.diff, (a,b));
@@ -85,18 +95,9 @@ class Cabinet {
              Gate.keeper(Fs.same, (a,b));
              PFCtasks.add(1);
              c3$.writeXF(true);
-           }
-            tmpRead1.close();
-            tmpRead2.close();
-            c3$.writeXF(true);
-         } catch {
-        runCatch("ReadWriteManager");
-        c3$.writeXF(true);
+        }
       }
-      c3$.writeXF(true);
-   }
- }
-var files = for i in findfiles(dir, recursive=true) do i;
+    }
 proc SerialGenerateDom() {
   var SerialGenDomGate = new borrowed Gate;
   var SerialGenDomCab = new borrowed Cabinet;
@@ -114,26 +115,22 @@ proc parallelFullCheck() {
   if V then writeln("in parallelFullCheck");
   var paraFullGate = new borrowed Gate;
   var paraCabinet = new borrowed Cabinet;
-    coforall task in Fs.MasterDom {
-        for a in files {
-          for b in files {
-            var lineA : string;
-            var lineB : string;
-              if exists(a) && exists(b) && a != b {
-                if isFile(a) && isFile(b) {
-                  if getFileSize(a) == getFileSize(b) {
-                    try {
-                      paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
-                      } catch {
-                        runCatch("parallelFullCheck");
-                    }
-                  }
-                }
+    coforall (a,b) in Fs.MasterDom {
+      var lineA : string;
+      var lineB : string;
+        if exists(a) && exists(b) && a != b {
+          if isFile(a) && isFile(b) {
+            if getFileSize(a) == getFileSize(b) {
+              try {
+                paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
+                } catch {
+                  runCatch("parallelFullCheck");
               }
             }
           }
         }
       }
+    }
 proc serialFullCheck() {
   var SFCtasks : atomic int;
   SFCtasks.write(T);
@@ -184,7 +181,7 @@ proc serialWrite() {
 SpeedTest.start();
 if S {
   writeln("starting FileCheck in Serial, started timer...");
-  writeln("doing SerialGenerateDom()");
+  if V then writeln("doing SerialGenerateDom()");
   SerialGenerateDom();
   if V then writeln("entering FullCheck()");
   serialFullCheck();
@@ -196,7 +193,7 @@ if S {
   SpeedTest.elapsed());
     } else {
     writeln("starting FileCheck in Parallel, started timer...");
-    writeln("doing paraGenerateDom()");
+    if V then writeln("doing paraGenerateDom()");
     SerialGenerateDom();
     //ParaGenerateDom();
     if V then writeln("entering FullCheck()");
