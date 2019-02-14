@@ -7,7 +7,6 @@
 use FileSystem;
 use Time;
 var SpeedTest: Timer;
-config const T : int = 1; // default min token?    ?
 config const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
 // add extra debug options
@@ -21,115 +20,111 @@ module Fs {
   var MasterDom = {("", "")};
   var same = {("", "")};
   var diff = {("", "")};
-  var numThreads = 0;
 }
 // add a per-function try-catch catcher.
 proc runCatch(function : string) {
   if V then writeln("Caught another error, from ", function);
 }
-//
-proc readEval(ref lineA, ref lineB, (a,b)) {
-  try {
-    var tmpRead1 = openreader(a);
-    var tmpRead2 = openreader(b);
-    tmpRead1.readln(lineA);
-    tmpRead2.readln(lineB);
-    } catch {
-      runCatch("readEval()");
-    }
-    return (lineA,lineB);
-  }
 class Gate {
   var D$ : sync bool=true;
   proc keeper(ref keys, (a,b)) {
-    var tasks : atomic int;
-    tasks.write(T);
+    var Duo : atomic int;
+    Duo.write(1);
     D$.writeXF(true);
     if V then writeln("waiting on D$");
     do {
       D$;
-     } while tasks.read() < 1;
+     } while Duo.read() < 1;
      D$.writeXF(true);
-     tasks.sub(1);
+     Duo.sub(1);
      keys += (a,b);
-     tasks.add(1);
+     Duo.add(1);
     }
   }
 class Cabinet {
-  var c1$ : sync bool=true;
-  var c3$ : sync bool=true;
-  // this method adds filenames to a domain
-  proc UpdateMasterDom(Gate, (a,b)) {
-    var SGDtasks : atomic int;
-    SGDtasks.write(T);
-    c1$.writeXF(true);
-    do {
-      c1$;
-      if V then writeln("waiting @ c1$");
-      } while SGDtasks.read() < 1;
-      if V then writeln("in UpdateMasterDom");
-          SGDtasks.sub(1);
-          Fs.MasterDom += (a,b);
-          Fs.numThreads += 1;
-          SGDtasks.add(1);
-          c1$.writeXF(true);
-        }
   proc ReadWriteManager(Gate, ref lineA, ref lineB, (a,b)) {
+    var c3$ : sync bool=true;
     if V then writeln("in ReadWriteManager");
     var PFCtasks : atomic int;
-    PFCtasks.write(T);
+    PFCtasks.write(1);
     c3$.writeXF(true);
     do {
       c3$;
-      if V then writeln("waiting @ c3$, blocking");
-      } while PFCtasks.read() < 1;
+      break;
+        } while PFCtasks.read() < 1;
      PFCtasks.sub(1);
-     readEval(lineA, lineB, (a,b));
-     if lineA != lineB {
-     if V then writeln("diffs " +lineA+ " and " +lineB);
+     try {
+       var tmpRead1 = openreader(a);
+       var tmpRead2 = openreader(b);
+       tmpRead1.readln(lineA);
+       tmpRead2.readln(lineB);
+       } catch {
+         runCatch("readEval()");
+       }
+      if lineA != lineB {
+        if V then writeln("diffs " +lineA+ " and " +lineB);
          Gate.keeper(Fs.diff, (a,b));
-         PFCtasks.add(1);
          c3$.writeXF(true);
+         PFCtasks.add(1);
          } else {
            if V then writeln("sames " +lineA+ " and " +lineB);
              Gate.keeper(Fs.same, (a,b));
-             PFCtasks.add(1);
              c3$.writeXF(true);
+             PFCtasks.add(1);
         }
       }
     }
-// get files
-var files = for i in findfiles(dir, recursive=true) do i;
-
+var files = findfiles(dir, recursive=true);
+proc ParallelGenerateDom() {
+    var ParallelGenDomGate = new Gate;
+      coforall (a) in files {
+        coforall (b) in files {
+          if exists(a) && exists(b) && a != b {
+            if isFile(a) && isFile(b) {
+              if getFileSize(a) == getFileSize(b) {
+                  try {
+        ParallelGenDomGate.keeper(Fs.MasterDom, (a,b));
+              } catch {
+                runCatch("parallelGenerateDom");
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
 proc SerialGenerateDom() {
-  var SerialGenDomGate = new borrowed Gate;
-  var SerialGenDomCab = new borrowed Cabinet;
+    var serialGenDomGate = new Gate;
       for a in files {
         for b in files {
           if exists(a) && exists(b) && a != b {
             if isFile(a) && isFile(b) {
               if getFileSize(a) == getFileSize(b) {
-                try {
-      SerialGenDomCab.UpdateMasterDom(SerialGenDomGate, (a,b));
-          } catch {
-            runCatch("SerialGenerateDom");
+                  try {
+      serialGenDomGate.keeper(Fs.MasterDom, (a,b));
+            } catch {
+              runCatch("SerialGenerateDom");
+              }
             }
           }
         }
       }
     }
   }
-}
 proc parallelFullCheck() {
   if V then writeln("in parallelFullCheck");
-  var paraFullGate = new borrowed Gate;
-  var paraCabinet = new borrowed Cabinet;
-  // this doesn't make it go any faster
+  var paraFullGate = new Gate;
+  var paraCabinet = new Cabinet;
   coforall (a,b) in Fs.MasterDom {
-    var lineA : string;
-    var lineB : string;
+      try {
+        paraFullGate.keeper(Fs.MasterDom, (a,b));
+      } catch {
+        runCatch("Eval coforall loop - parallelFullCheck");
+      }
+      var lineA : string;
+      var lineB : string;
             try {
-              paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
+          paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
               } catch {
                 runCatch("parallelFullCheck");
             }
@@ -137,8 +132,8 @@ proc parallelFullCheck() {
         }
 proc serialFullCheck() {
   if V then writeln("in serialFullCheck");
-  var serialFullGate = new borrowed Gate;
-  var serialCabinet = new borrowed Cabinet;
+  var serialFullGate = new Gate;
+  var serialCabinet = new Cabinet;
   for (a,b) in Fs.MasterDom {
     var lineX : string;
     var lineY : string;
@@ -175,8 +170,8 @@ proc serialWrite() {
 }
 // verbose run things.
 SpeedTest.start();
+writeln("starting FileCheck, started timer...");
 if S {
-  writeln("starting FileCheck in Serial, started timer...");
   if V then writeln("doing SerialGenerateDom()");
   var SerialGenerateDomSpeed: Timer;
   SerialGenerateDomSpeed.start();
@@ -195,16 +190,12 @@ if S {
   writeln("Serial FileCheck completed in " +
   SpeedTest.elapsed());
     } else {
-      writeln("\n As of this message, there is no real difference between \n"+
-      "serial and parallel versions.  SerialGenerateDom is many times slower \n"+
-      "than and diff checks tried thus far. \n");
-      writeln("starting FileCheck, started timer...");
       if V then writeln("doing SerialGenerateDom()");
-      var SerialGenerateDomSpeed2: Timer;
-      SerialGenerateDomSpeed2.start();
-      SerialGenerateDom();
-      SerialGenerateDomSpeed2.stop();
-      writeln("completed SerialGenerateDom() in "+SerialGenerateDomSpeed2.elapsed());
+      var paraGenerateDomSpeed2: Timer;
+      paraGenerateDomSpeed2.start();
+      ParallelGenerateDom();
+      paraGenerateDomSpeed2.stop();
+      writeln("completed ParallelGenerateDom() in "+paraGenerateDomSpeed2.elapsed());
       if V then writeln("entering FullCheck()");
       var parallelFullCheckSpeed: Timer;
       parallelFullCheckSpeed.start();
