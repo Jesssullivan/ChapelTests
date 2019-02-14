@@ -35,7 +35,7 @@ From inside FileCheck.chpl on use of classes - see below for snippets:
 
 Class Gate is a generic way to maintain thread safety while a coforall loop tries to update one domain (```ref keys```) with many live threads and new entries ```{("", "")}```.  A new borrowed Gate class is made per function that need to be operate on a domain, with the "Gate.keeper".
 
-Safety is (tentatively) achieved with the Gate.keeper() syncing its "keys" - a generic domain from within module "Fs" - with a Sync$ variable used in concert with an atomic integer that may be 1 or 0 - open or closed - pass or wait.  
+Safety is (tentatively) achieved with the Gate.keeper() syncing its "keys" - a generic domain from within module "Fs" - with a Sync$ variable used in concert with an atomic integer that may be 1 or 0 - open or closed - go or wait.  
 
 Class Cabinet manages the dupe evaluation.  this is a generic way to maintain thread safety by not only sandboxing the read/write operations to a domain, but all evaluations.  class Gate is use inside each Cabinet to preform the actual domain transactions. 
 ```
@@ -48,7 +48,7 @@ class Gate {
     Duo.write(1);          // init lock as "open"
     D$.writeXF(true);     // init sync as "open"
     do {
-      D$;              // wait, read varible while wew wait
+      D$;              // wait, read varible while we wait
      } while Duo.read() < 1;  
      D$.writeXF(true);   // re open sync
      Duo.sub(1);        // lock, preforming a domain transaction
