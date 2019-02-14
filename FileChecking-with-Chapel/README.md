@@ -15,18 +15,13 @@ This program will recursively run through all directories from where it starts a
 //
 config const dir = ".";  // starting dir
 config const V : bool=false; // verbose output?
+config const T : atomic int // task in sync$ classes - should stay at 1 for now 
 config const S : bool=false;  // override parallel, use Serial looping?
 config const ext : ".txt" 
 //
 ```
 # General notes:
 
-```
-preforming an initial SizeCheck in parallel may not be an option.
-
-parallelFullCheck(): fixed varied results, but very slow due to serial SizeCheck bottleneck.
-
-```
 From inside FileCheck.chpl on use of classes: 
 
 "class Gate is a generic way to maintain thread safety
