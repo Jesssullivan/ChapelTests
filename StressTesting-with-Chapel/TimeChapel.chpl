@@ -9,6 +9,7 @@ config const F = "FileCheck"; // script
 config const A = " --S"; // optional args to try also
 config const opt : bool=true; // use args?
 config const R : bool=true; // compile a report?
+config const N : bool=false;  // do not open nano by default
 config const L : int=10; // loops, repeated for additional arg if listed
 
 use Spawn;
@@ -70,7 +71,9 @@ if R {
   Ochann.write(avgs);
   Ochann.close();
   OFile.close();
+if N {
   var nano = spawnshell(["nano StressChapel_Results.txt"]);
   nano.wait();
   nano.close();
+  }
 }
