@@ -5,13 +5,21 @@ Repo in light of PSU OS course
 ```
 git clone https://github.com/Jesssullivan/ChapelTests
 ```
+# run some tests from this repo:
+
+```
+# cd directory to evaluate for dupes with 
+git clone https://github.com/Jesssullivan/ChapelTests
+chpl ChapelTests/FileChecking-with-Chapel/FileCheck.chpl
+chpl ChapelTests/StressTesting-with-Chapel/TimeChapel.chpl
+./TimeChapel 
+#  ...or configure with ./TimeChapel --F="FileCheck" --A="--S" --L=10 --opt --R --N
+```
 # Resources:
 
 Chapel docs:
 https://chapel-lang.org/docs/users-guide/datapar/forall.html
 
-Semaphore Project:
-https://turing.plymouth.edu/~kgb1013/?course=4310&project=0
 
 # In a (bash) shell, install Chapel:  
  Mac or Linux here, others refer to -
