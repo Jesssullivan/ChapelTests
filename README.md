@@ -2,18 +2,10 @@
 
 Repo in light of PSU OS course
 
-# Run some tests from this repo:
-
 ```
-# from /StressTesting-with-Chapel/.README.md
-
-# cd directory to evaluate for dupes with 
 
 git clone https://github.com/Jesssullivan/ChapelTests
-chpl ChapelTests/FileChecking-with-Chapel/FileCheck.chpl
-chpl ChapelTests/StressTesting-with-Chapel/TimeChapel.chpl
-./TimeChapel 
-#  Configure with ./TimeChapel --F="FileCheck" --A="--S" --L=10 --opt --R --N
+
 ```
 # Resources:
 
