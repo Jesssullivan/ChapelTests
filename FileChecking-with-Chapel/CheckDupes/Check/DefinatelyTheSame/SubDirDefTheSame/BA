@@ -1,0 +1,18 @@
+BA1
+01
+1
+10
+"files a & b are different at char level, but will read as same. 
+ FileCheck reads to line level."
+1
+01
+1
+10
+"files a & b are different at char level, but will read as same. 
+ FileCheck reads to line level."
+1
+01
+1
+10
+"files a & b are different at char level, but will read as same. 
+ FileCheck reads to line level."
