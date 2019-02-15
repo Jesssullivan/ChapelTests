@@ -3,7 +3,7 @@
 
 The idea is to evaluate a "--flag" -in this case, Serial or Parallel in FileCheck.chpl- to see of there are time benefits to parallel processing.  In this case, there really are not any, because that program relies mostly on disk speed.  
 
-# Basic Run with Filecheck:
+# Basic Run with FileCheck.chpl:
 
 ```
 # cd directory to evaluate with
@@ -14,7 +14,7 @@ chpl ChapelTests/StressTesting-with-Chapel/TimeChapel.chpl
 #  ...or configure with ./TimeChapel --F="FileCheck" --A="--S" --L=10 --opt --R --N
 ```
 
-here are the "--flag" defaults: 
+# here are the "--flag" defaults: 
 
 ```
 config const F = "FileCheck"; // script
