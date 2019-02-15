@@ -2,8 +2,8 @@
 * Evaluate a Chapel (or any) script by time
 * WIP by Jess Sullivan
 * Usage: First compile YourScript.chpl to a binary
-* chpl StressChapel.chpl
-* ./StressChapel --F=["yourScript --Args"]
+* chpl TimeChapel.chpl
+* ./TimeChapel --F=["yourScript --Args"]
 **********************************/
 config const F = "FileCheck"; // script
 config const A = " --S"; // optional args to try also
