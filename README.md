@@ -13,7 +13,7 @@ cd chapeltests/ChapelTesting-Python3/
 
 chpl ../FileChecking-with-Chapel/FileCheck.chpl
 
-python3 Timer.py
+python3 Timer_FileCheck.py
 
 ```
 
