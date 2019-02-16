@@ -13,11 +13,18 @@ cd chapeltests/ChapelTesting-Python3/
 
 chpl ../FileChecking-with-Chapel/FileCheck.chpl
 
+# For same parallel domain read but parallel vs. serial evaluation:
+
 python3 Timer_FileCheck.py
+
+# for (questionable but) entirely serial evaluation:
+
+python3 Timer_PURE_Serial.py
 
 ```
 
-FileCheck.chpl provides both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  Both solutions will be “slow”, as they are fundamentally limited by disk speed.   Go to /FileChecking-with-Chapel/ for more information on this script.  Timer.py evaluates completion time for both Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on this test.
+FileCheck.chpl provides both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  Both solutions will be “slow”, as they are fundamentally limited by disk speed.   Go to /FileChecking-with-Chapel/ for more information on this script.  Timer_FileCheck.py and other tests evaluate completion times for both Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
+
 
 # Get some Chapel:
 
