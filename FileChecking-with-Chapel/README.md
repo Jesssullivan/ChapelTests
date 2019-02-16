@@ -20,10 +20,13 @@ example:
 Flags:
 ```
 //
-config const S : bool=false;  // override parallel, use Serial looping?
+cconfig const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
-// extra debug options
+// add extra debug options
 config const V : bool=false; // Vebose output of actions
+config const R : bool=true; // compile report file?  use false for time eval
+config const PURE : bool =false;  // compile masterDom in serial?
+//  there are serious limitations to findfile() in the current layout.
 config const ext = ".txt";  // use alternative ext?
 config const SAME = "SAME";
 config const DIFF = "DIFF";
