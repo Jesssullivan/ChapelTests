@@ -8,10 +8,14 @@ cd chapeltests/ChapelTesting-Python3/
 
 chpl ../FileChecking-with-Chapel/FileCheck.chpl
 
-python3 Timer.py
+python3 Timer_FileCheck.py
 ```
 
-# Timer.py will loop a script and find the average time it takes to complete, with and without an additional argument.
+# Timer_FileCheck.py will loop a script and find the average time it takes to complete, with and without an additional argument.
+
+THE TIMES WILL BE ESSENTIALLY IDENTICAL.  
+
+# Use Timer_PURE_Serial.py to see the default - findfiles(dir, recursive=true) - method used to generate the masterDom, from which dupes are evaluated.  
 
 The idea is to evaluate a "--flag" -in this case, Serial or Parallel in FileCheck.chpl- to see of there are time benefits to parallel processing.  In this case, there really are not any, because that program relies mostly on disk speed.  
 
@@ -21,9 +25,19 @@ default settings:
 ```
 # Python3- language #
 
-File = "./FileCheck" # compiled chapel binary
-opt = "--S"  # flag to add on second round
-loopNum = 10  # times to repeat
+File = "./FileCheck" # chapel to run
+opt = "--S" # flag to eval against (serial)
+noFile = "--R=false"  #  do not let chapel compile a report per run
+
+# additional args from FileCheck.chpl:
+Verb = "--V"  #  use verbose logging?
+
+#  default DOES NOT USE ALL SERIAL. using a coforall to create masterDomself.
+#  add PURE to arg list in the iterate scripts do see no coforall used at all.
+#  (generally fails)
+
+PURE = "--PURE=true"
+
 ```
 # method to loop:
 ```
