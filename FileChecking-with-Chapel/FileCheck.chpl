@@ -11,6 +11,9 @@ config const S : bool=false;  // override parallel, use Serial looping?
 config const dir = "."; // start here?
 // add extra debug options
 config const V : bool=false; // Vebose output of actions
+config const R : bool=true; // compile report file?  use false for time eval
+config const PURE : bool =false;  // compile masterDom in serial?
+//  there are serious limitations to findfile() in the current layout.
 config const ext = ".txt";  // use alternative ext?
 config const SAME = "SAME";
 config const DIFF = "DIFF";
@@ -40,8 +43,8 @@ with a Sync$ variable used in concert with an atomic integer that may be
 */
 class Gate {
   var D$ : sync bool=true;
+  var Duo : atomic int;
   proc keeper(ref keys, (a,b)) { // use "ref keys" due to constant updating of this domain
-    var Duo : atomic int;
     Duo.write(1);
     D$.writeXF(true); // init open
     do {
@@ -94,42 +97,18 @@ class Cabinet {
         }
       }
     }
-
-// globally find all files. this may take a while.
-var files = findfiles(dir, recursive=true);
-
 // populates Fs.MasterDom using coforall
-proc ParallelGenerateDom() {
-    var ParallelGenDomGate = new Gate;
-      coforall a in files {
-        coforall b in files {
-          if exists(a) && exists(b) && a != b {
-            if isFile(a) && isFile(b) {
-              if getFileSize(a) == getFileSize(b) {
-                  try {
-        ParallelGenDomGate.keeper(Fs.MasterDom, (a,b));
-              } catch {
-                runCatch("parallelGenerateDom", a,b);
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-
-// populates Fs.MasterDom using for loops, only used with --S
-proc SerialGenerateDom() {
-    var serialGenDomGate = new Gate;
-      for a in files {
-        for b in files {
-          if exists(a) && exists(b) && a != b {
-            if isFile(a) && isFile(b) {
-              if getFileSize(a) == getFileSize(b) {
-                  try {
-      serialGenDomGate.keeper(Fs.MasterDom, (a,b));
-            } catch {
-              runCatch("SerialGenerateDom", a,b);
+var ParallelGenDomGate = new Gate;
+proc PGD(folder) {
+for a in findfiles(folder, recursive=false) {
+  for b in findfiles(folder, recursive=false) {
+    if exists(a) && exists(b) && a != b {
+      if isFile(a) && isFile(b) {
+        if getFileSize(a) == getFileSize(b) {
+            try {
+  ParallelGenDomGate.keeper(Fs.MasterDom, (a,b));
+        } catch {
+          runCatch("parallelGenerateDom", a,b);
               }
             }
           }
@@ -137,6 +116,35 @@ proc SerialGenerateDom() {
       }
     }
   }
+proc ParallelGenerateDom() {
+  coforall folder in walkdirs(dir) {
+      PGD(folder);
+      }
+    }
+// populates Fs.MasterDom using for loops, only used with --S
+proc serialGenerateDom() {  // relies on findfiles(dir, recursive-true)
+  if PURE {
+    var files = findfiles(dir, recursive=true);
+       for a in files {
+        for b in files {
+          if exists(a) && exists(b) && a != b {
+            if isFile(a) && isFile(b) {
+              if getFileSize(a) == getFileSize(b) {
+                  try {
+                    Fs.MasterDom += (a,b);
+                    } catch {
+              runCatch("serialGenerateDom", a,b);
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {
+    ParallelGenerateDom();
+    writeln("used parallel ParallelGenerateDom() due to findfile() linitations");
+  }
+}
   // populates Fs.MasterDom using for loops, only used with --S
 proc parallelFullCheck() {
   if V then writeln("in parallelFullCheck");
@@ -160,12 +168,20 @@ proc serialFullCheck() {
     var lineX : string;
     var lineY : string;
       try {
-        serialCabinet.ReadWriteManager(serialFullGate, lineX, lineY, (a,b));
+        var tmpRead1 = openreader(a);
+        var tmpRead2 = openreader(b);
+        tmpRead1.readln(lineX); // used in favor of readline() method ~ accuracy?
+        tmpRead2.readln(lineY);
         } catch {
-          runCatch("parallelFullCheck", a,b);
-      }
+          runCatch("readEval()", a,b);
+        }
+        if lineX != lineY {
+          Fs.diff += (a,b);
+          } else {
+          Fs.same += (a,b);
     }
   }
+}
 // configure a naming scheme, used more if dates / zip are going to be a thing
 proc NameScheme(name : string) : string {
   var RunName : string;
@@ -195,11 +211,11 @@ SpeedTest.start();
 writeln("starting FileCheck, started timer...");
 if S {
   if V then writeln("doing SerialGenerateDom()");
-  var SerialGenerateDomSpeed: Timer;
-  SerialGenerateDomSpeed.start();
-  SerialGenerateDom();
-  SerialGenerateDomSpeed.stop();
-  writeln("completed SerialGenerateDom() in "+SerialGenerateDomSpeed.elapsed());
+  var serialGenerateDomSpeed: Timer;
+  serialGenerateDomSpeed.start();
+  serialGenerateDom();
+  serialGenerateDomSpeed.stop();
+  writeln("completed SerialGenerateDom() in "+serialGenerateDomSpeed.elapsed());
   if V then writeln("entering FullCheck()");
   var serialFullCheckSpeed: Timer;
   serialFullCheckSpeed.start();
@@ -207,7 +223,7 @@ if S {
   serialFullCheckSpeed.stop();
   writeln("Completed FullCheck() in "+serialFullCheckSpeed.elapsed()+
   " Beginning WriteFiles");
-  serialWrite();
+  if R then serialWrite();
   SpeedTest.stop();
   writeln("Serial FileCheck completed in " +
   SpeedTest.elapsed());
@@ -225,7 +241,7 @@ if S {
       parallelFullCheckSpeed.stop();
       writeln("Completed FullCheck() in "+parallelFullCheckSpeed.elapsed()+
       " Beginning WriteFiles");
-      serialWrite();
+      if R then serialWrite();
       SpeedTest.stop();
       writeln("FileCheck completed in " +
       SpeedTest.elapsed());
