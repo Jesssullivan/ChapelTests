@@ -10,10 +10,10 @@ use Time;
 // standard --flags
 config const S : bool=false;  // override parallel, use Serial looping?
 config const PURE : bool =false;  // compile masterDom in serial?
-config const V : bool=false; // Vebose output of actions
+config const V : bool=true; // Vebose output of actions
 // use internal Chapel timers?  default is false, in favor of
 //  external Python3 timer scripts, in repo
-config const T : bool=false;
+config const T : bool=true;
 
 // add extra debug options
 config const debug : bool=false;  // enable verbose logging from within loops.
@@ -74,15 +74,10 @@ to preform the actual domain transactions.
 class Cabinet {
   var c3$ : sync bool=true;
   var PFCtasks : atomic int;
-  proc ReadWriteManager(Gate, ref lineA, ref lineB, (a,b)) {
+  proc ReadWriteManager(Gate, (a,b)) {
     if debug then writeln("in ReadWriteManager");
-    PFCtasks.write(1);
-    c3$.writeXF(true);
-    do {
-      if debug then writeln("waiting @ Cabinet c3$...");
-      c3$;
-        } while PFCtasks.read() < 1;
-     PFCtasks.sub(1);  // close
+    var lineA : string;
+    var lineB : string;
      try {
        var tmpRead1 = openreader(a);
        var tmpRead2 = openreader(b);
@@ -170,10 +165,8 @@ proc parallelFullCheck() {
   var paraFullGate = new Gate;
   var paraCabinet = new Cabinet;
   coforall (a,b) in Fs.MasterDom {
-      var lineA : string;
-      var lineB : string;
             try {
-          paraCabinet.ReadWriteManager(paraFullGate, lineA, lineB, (a,b));
+          paraCabinet.ReadWriteManager(paraFullGate, (a,b));
               } catch {
                 runCatch("parallelFullCheck", a,b);
             }
@@ -234,14 +227,16 @@ proc serialWrite() {
 // verbose run things.
 
 proc EnterEnder(run : string) {
-  if S {
-    if PURE {
-      writeln(run + " FileCheck with complete serial operation...");
+  if V {
+    if S {
+      if PURE {
+        writeln(run + " FileCheck with complete serial operation...");
+      } else {
+      writeln(run + " FileCheck with serial duplicate evaluation...");
+    }
     } else {
-    writeln(run + " FileCheck with serial duplicate evaluation...");
-  }
-  } else {
-    writeln(run + " FileCheck in full parallel");
+      writeln(run + " FileCheck in full parallel");
+    }
   }
 }
 proc RunStyle() {
@@ -270,7 +265,7 @@ proc RunStyle() {
         }
       }
       if R then serialWrite();
-    SerialTime.stop();
+    if T then SerialTime.stop();
     if T {
       if V {
         writeln("Serial FileCheck completed in " +

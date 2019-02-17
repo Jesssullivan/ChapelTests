@@ -9,21 +9,17 @@ Repo in light of PSU OS course
 
 git clone https://github.com/Jesssullivan/ChapelTests
 
-cd chapeltests/ChapelTesting-Python3/
+# compile FileCheck:
 
-chpl ../FileChecking-with-Chapel/FileCheck.chpl
+chpl FileChecking-with-Chapel/FileCheck.chpl
 
-# For same parallel domain read but parallel vs. serial evaluation:
+# evaluate 3 different run times:
 
-python3 Timer_FileCheck.py
-
-# for (questionable but) entirely serial evaluation:
-
-python3 Timer_PURE_Serial.py
+python3 ChapelTesting-Python3/Timer_FileCheck.py
 
 ```
 
-FileCheck.chpl provides both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  Both solutions will be “slow”, as they are fundamentally limited by disk speed.   Go to /FileChecking-with-Chapel/ for more information on this script.  Timer_FileCheck.py and other tests evaluate completion times for both Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
+FileCheck.chpl provides both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  Both solutions will be “slow”, as they are fundamentally limited by disk speed.   Go to /FileChecking-with-Chapel/ for more information on this script.  Timer_FileCheck.py and other tests evaluate completion times for all Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
 
 To run:
 
@@ -97,46 +93,6 @@ class Gate {
 ```
 
 Class Cabinet manages the dupe evaluation.  this is a generic way to maintain thread safety by not only sandboxing the read/write operations to a domain, but all evaluations.  class Gate is use inside each Cabinet to preform the actual domain transactions.
-
-Below are some snippets / vignettes of class Cabinet, for an idea on how class Gate and class Cabinet work together:
-
-```
-//  Chapel-Language //
-
-PFCtasks.write(1);
-c3$.writeXF(true);
-```
-c3$ is the Cabinet's sync variable.
-
-PFCtasks is a atomic integer, and is use the same way as with class gate: a binary task "switch" to toggle between reading the sync variable and preforming an operation.
-
-The same do-while sync variable logic:
-
-```
-do {
-  c3$;
-    } while PFCtasks.read() < 1;
-```
-The first task will pass this, to immediately toggle the atomic switch:
-```
-PFCtasks.sub(1);  
-```
-
-- tmpRead1 / tmpRead2 are temporary reader channels -
-- these channels are used for file "a" and file "b"
-- in the masterDom of all same size file pairs.
-- lineA / lineB are generic strings
-
-```
-tmpRead1.readln(lineA);
-tmpRead2.readln(lineB);
-
-if lineA != lineB {
-  Gate.keeper(Fs.diff, (a,b));
-  c3$.writeXF(true);
-  PFCtasks.add(1);
-```
-Here, the diff is sent to class Gate to update the diff domain.  
 
 
 # Get some Chapel:

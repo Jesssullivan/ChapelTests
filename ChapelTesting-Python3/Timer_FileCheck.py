@@ -8,44 +8,46 @@
 # of FileCheck.chpl  --  NOTE: coforall is used in both BY DEFAULT.
 # This is to bypass the slow findfiles() method by dividing file searches
 # by number of directories.
-# use arg PURE for all serial in the iterateWithArgs() function.
-#
 
 import subprocess
 import time
 
-File = "./FileCheck" # chapel to run
-opt = "--S" # flag to eval against (serial)
-noFile = "--R=false"  #  do not let chapel compile a report per run
+File = "../FileChecking-with-Chapel/FileCheck" # chapel to run
 
-# additional args from FileCheck.chpl:
-Verb = "--V"  #  use verbose logging?
-#  default DOES NOT USE ALL SERIAL. using a coforall to create masterDomself.
-#  add PURE to arg list in the iterate scripts do see no coforall used at all.
-#  (generally fails)
-PURE = "--PURE=true"
+# default false, use for evaluation
+S = "--S" # flag to eval against (serial)
 
-loopNum = 10
+# default false, use for evaluation
+PURE = "--PURE=true" # no coforall looping anywhere
 
-runTime1 = []
-runTime2 = []
+# default true, make it false:
+noReport = "--R=false"  #  do not let chapel compile a report per run
 
-def iterateScript(loops, F, runTime):
+# default true, make it false:
+T = "--T=false" # no internal chapel timers
+
+# default true, make it false:
+V = "--V=false"  #  use verbose logging?
+
+# default is false
+bug = "--debug=false"
+
+Default = (File, noReport, T, V, bug) # default parallel operation
+Serial = (File, noReport, T, V, bug, S)
+Serial_PURE = (File, noReport, T, V, bug, S, PURE)
+
+ListOptions = [Default, Serial, Serial_PURE]
+
+loopNum = 5 # iterations of each runTime for an average speed.
+
+def iterateWithArgs(loops, args, runTime):
     for l in range(loops):
         start = time.time()
-        subprocess.run([F, noFile])
+        subprocess.run(args)
         end = time.time()
         runTime.append(end-start)
 
-def iterateWithArgs(loops, F, arg, runTime):
-    for l in range(loops):
-        start = time.time()
-        subprocess.run([F, arg, noFile])
-        end = time.time()
-        runTime.append(end-start)
-
-iterateScript(loops=loopNum, F=File, runTime=runTime1)
-iterateWithArgs(loops=loopNum, F=File, arg=str(opt), runTime=runTime2)
-
-print("average runTime for no args is ", sum(runTime1) / loopNum)
-print("average runTime with args is ", sum(runTime2) / loopNum)
+for option in ListOptions:
+    runTime = []
+    iterateWithArgs(loopNum, option, runTime)
+    print("average runTime for FileCheck with ", str(option), " options is ", sum(runTime) / loopNum)
