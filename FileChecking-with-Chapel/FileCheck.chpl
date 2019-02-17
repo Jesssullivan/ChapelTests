@@ -303,7 +303,6 @@ proc RunStyle() {
     }
         if R then serialWrite();
         if T then ParaTime.stop();
-        if T then writeln("FileCheck completed in " + ParaTime.elapsed());
         if T {
           if V {
             writeln("Serial FileCheck completed in " +
