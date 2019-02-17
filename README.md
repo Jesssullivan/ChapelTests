@@ -11,11 +11,15 @@ git clone https://github.com/Jesssullivan/ChapelTests
 
 # compile FileCheck:
 
-chpl FileChecking-with-Chapel/FileCheck.chpl
+cd ChapelTests/FileChecking-with-Chapel
+
+chpl FileCheck.chpl
 
 # evaluate 3 different run times:
 
-python3 ChapelTesting-Python3/Timer_FileCheck.py
+cd ../ChapelTesting-Python3
+
+python3 Timer_FileCheck.py
 
 ```
 
