@@ -67,11 +67,13 @@ class Gate {
     if debug then writeln("Gate is open");
   }
 }
-
-// use DomainAdd() as the function that will be preformed in parallel.
-// it appears this system-
-// coforall loop --> for loop -- for loop --> conditions-  will fail if kept
-// in the same function.
+/*
+** THIS IS DEFAULT **
+use DomainAdd() as the function that will be preformed in parallel.
+it appears this system-
+coforall loop --> for loop -- for loop --> conditions-  will fail if kept
+in the same function.
+*/
 proc DomainAdd(folder, GateType) {
   GateType.lock();
   for a in findfiles(folder, recursive=false) {
@@ -104,6 +106,7 @@ proc ParallelGenerateDom() {
   }
 }
 /*
+** THIS IS DEFAULT **
   ReadWriteManager evaluates same size files in the MasterDom
   at char level- see use of
   uint --> readln() method
@@ -139,12 +142,16 @@ proc parallelFullCheck() {
     ReadWriteManager(a,b, ParaFullGate);
   }
 }
-
+/*
 // end of Parallel functions //
 
-proc serialGenerateDom() {  // relies on findfiles(dir, recursive-true)
-  // recursive findfiles() is not a great solution- use --T to see
-  // how badly it fares
+** THIS IS --SP FLAG **
+
+relies on findfiles(dir, recursive-true)
+recursive findfiles() is not a great solution- use --T to see
+how badly it fares
+*/
+proc serialGenerateDom() {
   var FindFilesTime = new Timer;
   if V then writeln("staring to populate Fs.MasterDom with findfiles(dir, recursive=true) \n" +
   " will print time elapsed for this operation, please wait...");
@@ -152,63 +159,69 @@ proc serialGenerateDom() {  // relies on findfiles(dir, recursive-true)
   var files = findfiles(dir, recursive=true);
   if T then FindFilesTime.stop();
   if V then writeln("findfiles(dir, recursive=true) completed in " + FindFilesTime.elapsed());
-     for a in files {
-      for b in files {
-        if exists(a) && exists(b) && a != b {
-          try {
-            if getFileSize(a) == getFileSize(b) {
-              if debug then writeln(a+" and "+b+" adding to MasterDom");
-              Fs.MasterDom += (a,b);
+  for a in files{
+    for b in files {
+      if exists(a) && exists(b) && a != b {
+        if isFile(a) && isFile(b) {
+          if getFileSize(a) == getFileSize(b) {
+            if debug then writeln(a+" and "+b+" adding to MasterDom");
+            Fs.MasterDom += (a,b);
             }
             if getFileSize(a) < 8 && getFileSize(b) < 8 {
               if debug then writeln(a+" and "+b+" adding to sizeZero Domain");
               Fs.sizeZero += (a,b);
             }
-          } catch {
-            runCatch("serialGenerateDom", a,b);
-          }
         }
       }
     }
   }
+}
+/*
+
+** THIS IS --SE FLAG **
 
 // Serial for-loop version of FullCheck
+*/
 proc serialFullCheck() {
   for (a,b) in Fs.MasterDom {
-      try {
-        var lineX : uint;
-        var lineY : uint;
-        var tmpRead1 = openreader(a);
-        var tmpRead2 = openreader(b);
-        tmpRead1.readln(lineX);
-        tmpRead2.readln(lineY);
-        if lineX != lineY {
-          if debug then writeln(a+" and "+b+" adding to 'diff' domain");
+    try {
+        var lineA : string;
+        var lineB : string;
+        var tmp1 = openreader(a);
+        var tmp2 = openreader(b);
+        tmp1.readln(lineA);
+        tmp2.readln(lineB);
+        if lineA != lineB {
           Fs.diff += (a,b);
           } else {
-            if debug then writeln(a+" and "+b+" adding to 'same' domain");
-        tmpRead1.close();
-        tmpRead2.close();
-      }
-     } catch {
-          runCatch("readEval()", a,b);
+            Fs.same += (a,b);
+        }
+        tmp1.close();
+        tmp2.close();
+        } catch {
+          runCatch("serialFullCheck() ", a,b);
         }
   }
+}
+
+// find options used for --V and NameScheme()
+proc FindOps() : string {
+  var opt = "";
+  if SP then opt+=" --SP ";
+  if SE then opt+=" --SE ";
+  return opt;
 }
 // configure a naming scheme
 proc NameScheme(name : string) : string {
   var RunName : string;
-  var opt = "";
-  if SP then opt+="--SP";
-  if SE then opt+="--SE";
-  if T then opt+="--T";
   if SP != true && SE != true {
     RunName = "Parallel";
   } else {
     RunName = "Serial";
   }
-  return "FileCheck-"+name+opt+ext;
+  return "FileCheck-"+name+FindOps()+ext;
 }
+
 // generic write function for any domain
 proc WriteAll(N : string, content) {
   var OFile = open(NameScheme(N), iomode.cw);
@@ -217,6 +230,7 @@ proc WriteAll(N : string, content) {
   Ochann.close();
   OFile.close();
 }
+
 // could write in parrallel
 //no real need (write to disk is way slower than me threads)
 proc serialWrite() {
@@ -236,68 +250,56 @@ if SP {
   }
 }
 
-// switch for verbose run intro .
-proc EnterEnder(run : string) {
-  if V {
-    if SE {
-      if SP {
-        writeln(run + " FileCheck with findfiles() serial operation...");
-      } else {
-      writeln(run + " FileCheck with serial duplicate evaluation...");
-    }
-      } else {
-        writeln(run + " FileCheck in full parallel");
-      }
-    }
-}
-
 // verbose run:
 proc RunStyle() {
+  var SerialTime = new Timer;
+  var Dom1Time = new Timer;
+  if V then writeln("starting FindFiles with "+ FindOps() +" options");
   if SE {
-    var SerialTime = new Timer;
-    if T then SerialTime.start();
-    var serialGenerateDomSpeed: Timer;
-    if T then serialGenerateDomSpeed.start();
-    DomSwitch();
-    if T then serialGenerateDomSpeed.stop();
-    if T {
-      if V {
-        writeln("completed all of SerialGenerateDom() in "+serialGenerateDomSpeed.elapsed());
+  SerialTime.start();
+  if V then writeln("started timer!");
+  if T then Dom1Time.start();
+  DomSwitch();
+  if T then Dom1Time.stop();
+    if V {
+      if T {
+        writeln("MasterDom generated in "+ Dom1Time.elapsed());
       }
     }
     if V then writeln("entering FullCheck()");
-    var serialFullCheckSpeed: Timer;
+    var serialFullCheckSpeed = new Timer;
     if T then serialFullCheckSpeed.start();
     serialFullCheck();
     if T then serialFullCheckSpeed.stop();
     if T {
       if V {
-        writeln("Completed FullCheck() in "+serialFullCheckSpeed.elapsed()+
+        writeln("Completed FullCheck() "+ FindOps() +" in "+serialFullCheckSpeed.elapsed()+
     " Beginning WriteFiles");
         }
       }
-      if R then serialWrite();
+    if R then serialWrite();
     if T then SerialTime.stop();
     if T {
       if V {
-        writeln("Serial FileCheck completed in " +
+        writeln("FileCheck completed in " +
     SerialTime.elapsed());
       }
     }
-  } else {  //  full parallel default
-    var ParaTime = new Timer;
+  }
+  var Dom2Time = new Timer;
+  var ParaTime = new Timer;
+  if SE != true {
     if T then ParaTime.start();
-    var paraGenerateDomSpeed2: Timer;
-    if T then paraGenerateDomSpeed2.start();
-    DomSwitch();
-    if T then paraGenerateDomSpeed2.stop();
+    if V then writeln("started timer!");
+    Dom2Time.start();
+  DomSwitch();
+  Dom2Time.stop();
     if T {
       if V {
-        writeln("completed ParallelGenerateDom() in "+paraGenerateDomSpeed2.elapsed());
+        writeln("MasterDom generated in "+ Dom2Time.elapsed());
       }
     }
-    if V then writeln("entering FullCheck()");
-    var parallelFullCheckSpeed: Timer;
+    var parallelFullCheckSpeed = new Timer;
     if T then parallelFullCheckSpeed.start();
     parallelFullCheck();
     if T then parallelFullCheckSpeed.stop();
@@ -311,13 +313,11 @@ proc RunStyle() {
   if T then ParaTime.stop();
   if T {
     if V {
-      writeln("Parallel FileCheck completed in " +
+      writeln("FileCheck with "+ FindOps() +" completed in " +
   ParaTime.elapsed());
       }
     }
   }
 }
 // call everything in a mildly more organized way:
-EnterEnder("Starting");
 RunStyle();
-EnterEnder("completed");
