@@ -73,9 +73,9 @@ class Gate {
 // coforall loop --> for loop -- for loop --> conditions-  will fail if kept
 // in the same function.
 proc DomainAdd(folder, GateType) {
-  GateType.lock();
   for a in findfiles(folder, recursive=false) {
     for b in findfiles(folder, recursive=false) {
+      GateType.lock();
       if exists(a) && exists(b) && a != b {
         if isFile(a) && isFile(b) {
           if getFileSize(a) == getFileSize(b) {
@@ -88,9 +88,9 @@ proc DomainAdd(folder, GateType) {
             }
         }
       }
+      GateType.openup();
     }
   }
-  GateType.openup();
 }
 /*
   parallel method to run DomainAdd() for every folder.

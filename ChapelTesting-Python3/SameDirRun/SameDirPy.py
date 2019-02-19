@@ -12,7 +12,7 @@
 import subprocess
 import time
 
-File = "../FileChecking-with-Chapel/FileCheck" # chapel to run
+File = "./FileCheck"
 
 # default false, use for evaluation
 SE = "--SE=true"
