@@ -42,62 +42,68 @@ Please see the python3 evaluation scripts to run these options in a loop.
 
 example:  
 ```
-./FileCheck --S --V --T --PURE --debug
+./FileCheck --V --T --debug
 ```
 
-...Will run a completely(--PURE) Serial(--S) FileCheck with internal timers(--T), which will be displayed with the verbose logs(--V) and all extra debug logging(--debug) from within each loop.
+...Will run FileCheck with internal timers(--T), which will be displayed with the verbose logs(--V) and all extra debug logging(--debug) from within each loop.
 
 All config --Flags:
-```
-config const S : bool=false;  // override parallel, use Serial looping?
-config const PURE : bool =false;  // compile masterDom in serial?
-config const V : bool=false; // Vebose output of actions
-// use internal Chapel timers?  default is false, in favor of
-//  external Python3 timer scripts, in repo
-config const T : bool=false;
 
-// add extra debug options
-config const debug : bool=false;  // enable verbose logging from within loops.
+```
+// serial options:
+config const SE : bool=false; // use serial evaluation?
+config const SP : bool=false; // use findfiles() as mastserDom method?
+config const S : bool=false; // short for normal serial evaluation
+
+// logging options
+config const V : bool=true; // Vebose output of actions?
+config const debug : bool=false;  // enable verbose logging from within loops?
+config const T : bool=true; // use internal Chapel timers?
+config const R : bool=true; // compile report file?
+
+// file options
 config const dir = "."; // start here?
 config const ext = ".txt";  // use alternative ext?
-config const R : bool=true; // compile report file?
-config const SAME = "SAME";
-config const DIFF = "DIFF";
+config const SAME = "SAME";  // default name ID?
+config const DIFF = "DIFF"; // default name ID?
+
 ```
+
 # General notes:
 
 From inside FileCheck.chpl on use of classes - see below for snippets:
 
-Class Gate is a generic way to maintain thread safety while a coforall loop tries to update one domain (```ref keys```) with many live threads and new entries ```{("", "")}```.  A new borrowed Gate class is made per function that need to be operate on a domain, with the "Gate.keeper".
-
-Safety is (tentatively) achieved with the Gate.keeper() syncing its "keys" - a generic domain from within module "Fs" - with a Sync$ variable used in concert with an atomic integer that may be 1 or 0 - open or closed - go or wait.  
-
 ```
-//  Chapel-Language //
 
-// class gate, verbatim from FileCheck.chpl:
 class Gate {
-  var D$ : sync bool=true;
-  var Duo : atomic int;
-  proc keeper(ref keys, (a,b)) { // use "ref keys" due to constant updating of this domain
-    Duo.write(1);
-    D$.writeXF(true); // init open
-    do {
-      if debug then writeln("waiting @ Gate D$...");
-      D$;
-     } while Duo.read() < 1;
-     Duo.sub(1);
-     keys += (a,b);
-     if debug then writeln("Gate opened! added keys " + (a,b));
-     Duo.add(1);
-     D$.writeXF(true);
-    }
+  // class Gate is an explicit way to use sync variables in parallel nested loops.
+  // Gate is initialized with Gate.initGate()
+  var x$: sync bool;
+  var busy : atomic int;
+  // Note:  this init does note follow default initializer spec by Chapel
+  proc initGate() {
+    x$.writeXF(true);
+    busy.write(1);
   }
+  // lock will wait after atomic busy is 2.
+  // this seems redundant, however this far this has been
+  // the easiest to understand sync solution for this script
+  proc lock() {
+    do {
+      x$;
+      if debug then writeln("Gate is locked");
+      } while busy.read() != 1;
+      busy.write(2);
+  }
+  // open / reset lock:
+  proc openup() {
+    busy.write(1);
+    x$.writeXF(true);
+    if debug then writeln("Gate is open");
+  }
+}
 
 ```
-
-Class Cabinet manages the dupe evaluation.  this is a generic way to maintain thread safety by not only sandboxing the read/write operations to a domain, but all evaluations.  class Gate is use inside each Cabinet to preform the actual domain transactions.
-
 
 # Get some Chapel:
 

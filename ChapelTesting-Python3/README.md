@@ -1,21 +1,13 @@
 
-# to eval:
+# Python Evaluation
 
 ```
 
-git clone https://github.com/Jesssullivan/ChapelTests
-
-# compile FileCheck:
-
-chpl FileChecking-with-Chapel/FileCheck.chpl
-
-# evaluate 3 different run times:
-
-python3 ChapelTesting-Python3/Timer_FileCheck.py
+Note:  args need to be updated to match new serial arg layout in FileCheck.chpl
 
 ```
 
-# Timer_FileCheck.py will loop FileCheck and find the average times it takes to complete, with a variety of additional arguments to toggle parallel and serial operation.
+Timer_FileCheck.py will loop FileCheck and find the average times it takes to complete, with a variety of additional arguments to toggle parallel and serial operation.
 
 
 Use Timer_PURE_Serial.py to see the default - findfiles(dir, recursive=true) - method used to generate the masterDom, from which dupes are evaluated.  

@@ -1,5 +1,5 @@
 /**********************************
-* read check files at line level for duplicates.
+* read check files at char level for duplicates.
 * Use --S=true for Serial, defaults to parallel processing.
 * WIP by Jess Sullivan
 * Usage: chpl FileCheck.chpl && ./FileCheck # to run this file
@@ -7,209 +7,210 @@
 use FileSystem;
 use Time;
 
-// standard --flags
-config const S : bool=false;  // override parallel, use Serial looping?
-config const PURE : bool =false;  // compile masterDom in serial?
-config const V : bool=true; // Vebose output of actions
-// use internal Chapel timers?  default is false, in favor of
-//  external Python3 timer scripts, in repo
-config const T : bool=true;
 
-// add extra debug options
-config const debug : bool=false;  // enable verbose logging from within loops.
+// serial options:
+config const SE : bool=false; // use serial evaluation?
+config const SP : bool=false; // use findfiles() as mastserDom method?
+config const S : bool=false; // short for normal serial evaluation
+
+// logging options
+config const V : bool=true; // Vebose output of actions?
+config const debug : bool=false;  // enable verbose logging from within loops?
+config const T : bool=true; // use internal Chapel timers?
+config const R : bool=true; // compile report file?
+
+// file options
 config const dir = "."; // start here?
 config const ext = ".txt";  // use alternative ext?
-config const R : bool=true; // compile report file?
-config const SAME = "SAME";
-config const DIFF = "DIFF";
+config const SAME = "SAME";  // default name ID?
+config const DIFF = "DIFF"; // default name ID?
 
 // Use module Fs to isolate domains during coforall looping.
 // these domains are only modified with a Gate and Cabinet class.
 module Fs {
   // using MasterDom during a "first pass" to find all same size files as (a,b).
-  // this must be known before evaluation!
   var MasterDom = {("", "")};  // contains same size files as (a,b).
   var same = {("", "")};  // identical files
   var diff = {("", "")};  // sorted files flagged as same size but are not identical
+  var sizeZero = {("", "")}; // sort files that are < 8 bytes
 }
+
 // add a per-function try-catch catcher.
 proc runCatch(function : string, arg1 : string, arg2 : string) {
   if V then writeln("Caught another error, from " + function + " while "+
   "processing \n" + arg1 +" and "+ arg2);
 }
-/*
-Class Gate is a {generic class, no init()} way to maintain thread safety while
-a coforall loop tries to update one domain (ref keys) with many
-live threads and new entries {("", "")}. A new borrowed Gate class is made per
-function that need to be operate on a domain, with the "Gate.keeper".
-Safety is (tentatively) achieved with the Gate.keeper()
-syncing its "keys" - a generic domain from within module "Fs" -
-with a Sync$ variable used in concert with an atomic integer that may be
-1 or 0 - open or closed - go or wait.
-*/
+
 class Gate {
-  var D$ : sync bool=true;
-  var Duo : atomic int;
-  proc keeper(ref keys, (a,b)) { // use "ref keys" due to constant updating of this domain
-    Duo.write(1);
-    D$.writeXF(true); // init open
+  // class Gate is an explicit way to use sync variables in parallel nested loops.
+  // Gate is intitialized with Gate.initGate()
+  var x$: sync bool;
+  var busy : atomic int;
+  // Note:  this init does note follow default initializer spec by Chapel
+  proc initGate() {
+    x$.writeXF(true);
+    busy.write(1);
+  }
+  // lock will wait after atomic busy is 2.
+  // this seems redundant, however this far this has been
+  // the easiest to understand sync solution for this script
+  proc lock() {
     do {
-      if debug then writeln("waiting @ Gate D$...");
-      D$;
-     } while Duo.read() < 1;
-     Duo.sub(1);
-     keys += (a,b);
-     if debug then writeln("Gate opened! added keys " + (a,b));
-     Duo.add(1);
-     D$.writeXF(true);
-    }
+      x$;
+      if debug then writeln("Gate is locked");
+      } while busy.read() != 1;
+      busy.write(2);
   }
-/*
-Class Cabinet manages the dupe evaluation.
-this is a {generic class, no init()} way to maintain thread safety by not only
-sandboxing the read/write operations to a domain,
-but all evaluations. class Gate is use inside each Cabinet
-to preform the actual domain transactions.
- */
-class Cabinet {
-  var c3$ : sync bool=true;
-  var PFCtasks : atomic int;
-  proc ReadWriteManager(Gate, (a,b)) {
-    if debug then writeln("in ReadWriteManager");
-    var lineA : string;
-    var lineB : string;
-     try {
-       var tmpRead1 = openreader(a);
-       var tmpRead2 = openreader(b);
-       tmpRead1.readln(lineA); // used in favor of readline() method ~ accuracy?
-       tmpRead2.readln(lineB);
-       } catch {
-         runCatch("readEval()", a,b);
-       }
-      if lineA != lineB {
-        if debug then writeln("diffs " +lineA+ " and " +lineB);
-         Gate.keeper(Fs.diff, (a,b));
-         c3$.writeXF(true);
-         PFCtasks.add(1);
-         } else {
-           if debug then writeln("sames " +lineA+ " and " +lineB);
-             Gate.keeper(Fs.same, (a,b));
-             c3$.writeXF(true);
-             PFCtasks.add(1);
-        }
-      }
-    }
-// populates Fs.MasterDom using coforall
-var ParallelGenDomGate = new Gate;
-proc PGD(folder) {
-for a in findfiles(folder, recursive=false) {
-  for b in findfiles(folder, recursive=false) {
-    if exists(a) && exists(b) && a != b {
-      if isFile(a) && isFile(b) {
-        if getFileSize(a) == getFileSize(b) {
-            try {
-  ParallelGenDomGate.keeper(Fs.MasterDom, (a,b));
-        } catch {
-          runCatch("parallelGenerateDom", a,b);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-// use the above function PGD for each directory listed by walkdirs(dir)
-proc ParallelGenerateDom() {
-  // TODO: evaluate accuracy with larger sets of files/subdirs
-  // this method may yield different results then the pure serial version.
-  coforall folder in walkdirs(dir) {
-      PGD(folder);
-      }
-    }
-// populates Fs.MasterDom using for loops, only used with --S --PURE
-proc serialGenerateDom() {  // relies on findfiles(dir, recursive-true)
-  if PURE {
-    // recursive findfiles() is not a great solution- using a timer to see
-    // how badly it fares
-    var FindFilesTime = new Timer;
-    if V then writeln("staring to populate Fs.MasterDom with findfiles(dir, recursive=true) \n" +
-    " will print time elapsed for this operation, please wait...");
-    FindFilesTime.start();
-    var files = findfiles(dir, recursive=true);
-    FindFilesTime.stop();
-    if V then writeln("findfiles(dir, recursive=true) completed in " + FindFilesTime.elapsed());
-       for a in files {
-        for b in files {
-          if exists(a) && exists(b) && a != b {
-            if isFile(a) && isFile(b) {
-              if getFileSize(a) == getFileSize(b) {
-                  try {
-                    // no need for Gate or Cabinet class during serial
-                    Fs.MasterDom += (a,b);
-                    } catch {
-              runCatch("serialGenerateDom", a,b);
-              }
-            }
-          }
-        }
-      }
-    }
-  } else {
-    ParallelGenerateDom();
-    if V then writeln("used parallel ParallelGenerateDom() due to findfile() limitations");
+  // open / reset lock:
+  proc openup() {
+    busy.write(1);
+    x$.writeXF(true);
+    if debug then writeln("Gate is open");
   }
 }
 
-proc parallelFullCheck() {
-  if V then writeln("in parallelFullCheck");
-  var paraFullGate = new Gate;
-  var paraCabinet = new Cabinet;
-  coforall (a,b) in Fs.MasterDom {
-            try {
-          paraCabinet.ReadWriteManager(paraFullGate, (a,b));
-              } catch {
-                runCatch("parallelFullCheck", a,b);
+// use DomainAdd() as the function that will be preformed in parallel.
+// it appears this system-
+// coforall loop --> for loop -- for loop --> conditions-  will fail if kept
+// in the same function.
+proc DomainAdd(folder, GateType) {
+  for a in findfiles(folder, recursive=false) {
+    for b in findfiles(folder, recursive=false) {
+      GateType.lock();
+      if exists(a) && exists(b) && a != b {
+        if isFile(a) && isFile(b) {
+          if getFileSize(a) == getFileSize(b) {
+            if debug then writeln(a+" and "+b+" adding to MasterDom");
+            Fs.MasterDom += (a,b);
             }
+            if getFileSize(a) < 8 && getFileSize(b) < 8 {
+              if debug then writeln(a+" and "+b+" adding to sizeZero Domain");
+              Fs.sizeZero += (a,b);
+            }
+        }
+      }
+      GateType.openup();
+    }
+  }
+}
+/*
+  parallel method to run DomainAdd() for every folder.
+  because of this, parallelism will vary based on file structure
+*/
+proc ParallelGenerateDom() {
+  var ParaDomGate = new borrowed Gate;
+  ParaDomGate.initGate();
+  coforall folder in walkdirs(dir) {
+    DomainAdd(folder,ParaDomGate);
+  }
+}
+/*
+  ReadWriteManager evaluates same size files in the MasterDom
+  at char level- see use of
+  uint --> readln() method
+  vs string --> readline method
+*/
+proc ReadWriteManager(a,b, GateType) {
+  GateType.lock();
+  try {
+      var lineA : string;
+      var lineB : string;
+      var tmp1 = openreader(a);
+      var tmp2 = openreader(b);
+      tmp1.readln(lineA);
+      tmp2.readln(lineB);
+      if lineA != lineB {
+        Fs.diff += (a,b);
+        } else {
+          Fs.same += (a,b);
+      }
+      tmp1.close();
+      tmp2.close();
+      } catch {
+        runCatch("ReadWriteManager readln", a,b);
+      }
+    GateType.openup();
+}
+
+// parallel method to run ReadWriteManager()
+proc parallelFullCheck() {
+  var ParaFullGate = new borrowed Gate;
+  ParaFullGate.initGate();
+  coforall (a,b) in Fs.MasterDom {
+    ReadWriteManager(a,b, ParaFullGate);
+  }
+}
+
+// end of Parallel functions //
+
+proc serialGenerateDom() {  // relies on findfiles(dir, recursive-true)
+  // recursive findfiles() is not a great solution- use --T to see
+  // how badly it fares
+  var FindFilesTime = new Timer;
+  if V then writeln("staring to populate Fs.MasterDom with findfiles(dir, recursive=true) \n" +
+  " will print time elapsed for this operation, please wait...");
+  if T then FindFilesTime.start();
+  var files = findfiles(dir, recursive=true);
+  if T then FindFilesTime.stop();
+  if V then writeln("findfiles(dir, recursive=true) completed in " + FindFilesTime.elapsed());
+     for a in files {
+      for b in files {
+        if exists(a) && exists(b) && a != b {
+          try {
+            if getFileSize(a) == getFileSize(b) {
+              if debug then writeln(a+" and "+b+" adding to MasterDom");
+              Fs.MasterDom += (a,b);
+            }
+            if getFileSize(a) < 8 && getFileSize(b) < 8 {
+              if debug then writeln(a+" and "+b+" adding to sizeZero Domain");
+              Fs.sizeZero += (a,b);
+            }
+          } catch {
+            runCatch("serialGenerateDom", a,b);
           }
         }
+      }
+    }
+  }
 
+// Serial for-loop version of FullCheck
 proc serialFullCheck() {
-  if V then writeln("in serialFullCheck");
-  var serialFullGate = new Gate;
-  var serialCabinet = new Cabinet;
   for (a,b) in Fs.MasterDom {
-    var lineX : string;
-    var lineY : string;
       try {
+        var lineX : uint;
+        var lineY : uint;
         var tmpRead1 = openreader(a);
         var tmpRead2 = openreader(b);
-        tmpRead1.readln(lineX); // used in favor of readline() method ~ accuracy?
+        tmpRead1.readln(lineX);
         tmpRead2.readln(lineY);
-        } catch {
-          runCatch("readEval()", a,b);
-        }
         if lineX != lineY {
+          if debug then writeln(a+" and "+b+" adding to 'diff' domain");
           Fs.diff += (a,b);
           } else {
-          Fs.same += (a,b);
-    }
+            if debug then writeln(a+" and "+b+" adding to 'same' domain");
+        tmpRead1.close();
+        tmpRead2.close();
+      }
+     } catch {
+          runCatch("readEval()", a,b);
+        }
   }
 }
 // configure a naming scheme
 proc NameScheme(name : string) : string {
   var RunName : string;
-  if S {
-    if PURE {
-      RunName = "Serial--PURE";
-    } else {
-      RunName = "Serial";
-        }
-      } else {
-      RunName = "Parallel";
-    }
-      return RunName+name+ext;
-    }
-// generic write function for either domain
+  var opt = "";
+  if SP then opt+="--SP";
+  if SE then opt+="--SE";
+  if T then opt+="--T";
+  if SP != true && SE != true {
+    RunName = "Parallel";
+  } else {
+    RunName = "Serial";
+  }
+  return "FileCheck-"+name+opt+ext;
+}
+// generic write function for any domain
 proc WriteAll(N : string, content) {
   var OFile = open(NameScheme(N), iomode.cw);
   var Ochann = OFile.writer();
@@ -222,31 +223,43 @@ proc WriteAll(N : string, content) {
 proc serialWrite() {
   WriteAll(SAME, Fs.same);
   WriteAll(DIFF, Fs.diff);
+  WriteAll("LessThan_8_Byte", Fs.sizeZero);
 }
 
-// verbose run things.
+// switch for simpler RunStyle()
+proc DomSwitch() {
+if SP {
+  if V then writeln("doing SerialGenerateDom()");
+  serialGenerateDom();
+  } else {
+    if V then writeln("doing ParallelGenerateDom()");
+    ParallelGenerateDom();
+  }
+}
 
+// switch for verbose run intro .
 proc EnterEnder(run : string) {
   if V {
-    if S {
-      if PURE {
-        writeln(run + " FileCheck with complete serial operation...");
+    if SE {
+      if SP {
+        writeln(run + " FileCheck with findfiles() serial operation...");
       } else {
       writeln(run + " FileCheck with serial duplicate evaluation...");
     }
-    } else {
-      writeln(run + " FileCheck in full parallel");
+      } else {
+        writeln(run + " FileCheck in full parallel");
+      }
     }
-  }
 }
+
+// verbose run:
 proc RunStyle() {
-  if S {
-    if V then writeln("doing SerialGenerateDom()");
+  if SE {
     var SerialTime = new Timer;
     if T then SerialTime.start();
     var serialGenerateDomSpeed: Timer;
     if T then serialGenerateDomSpeed.start();
-    serialGenerateDom();  // if PURE is handled in this function
+    DomSwitch();
     if T then serialGenerateDomSpeed.stop();
     if T {
       if V {
@@ -270,40 +283,39 @@ proc RunStyle() {
       if V {
         writeln("Serial FileCheck completed in " +
     SerialTime.elapsed());
-          }
-        }
-      } else {  //  full parallel default
-        var ParaTime = new Timer;
-        if T then ParaTime.start();
-        if V then writeln("doing ParallelGenerateDom()");
-        var paraGenerateDomSpeed2: Timer;
-        if T then paraGenerateDomSpeed2.start();
-        ParallelGenerateDom();
-        if T then paraGenerateDomSpeed2.stop();
-        if T {
-          if V {
-            writeln("completed ParallelGenerateDom() in "+paraGenerateDomSpeed2.elapsed());
-          }
-        }
-        if V then writeln("entering FullCheck()");
-        var parallelFullCheckSpeed: Timer;
-        if T then parallelFullCheckSpeed.start();
-        parallelFullCheck();
-        if T then parallelFullCheckSpeed.stop();
-        if T {
-          if V {
-        writeln("Completed FullCheck() in "+parallelFullCheckSpeed.elapsed()+
-        " Beginning WriteFiles");
       }
     }
-        if R then serialWrite();
-        if T then ParaTime.stop();
-        if T {
-          if V {
-            writeln("Serial FileCheck completed in " +
-        ParaTime.elapsed());
-              }
-            }
+  } else {  //  full parallel default
+    var ParaTime = new Timer;
+    if T then ParaTime.start();
+    var paraGenerateDomSpeed2: Timer;
+    if T then paraGenerateDomSpeed2.start();
+    DomSwitch();
+    if T then paraGenerateDomSpeed2.stop();
+    if T {
+      if V {
+        writeln("completed ParallelGenerateDom() in "+paraGenerateDomSpeed2.elapsed());
+      }
+    }
+    if V then writeln("entering FullCheck()");
+    var parallelFullCheckSpeed: Timer;
+    if T then parallelFullCheckSpeed.start();
+    parallelFullCheck();
+    if T then parallelFullCheckSpeed.stop();
+    if T {
+      if V {
+    writeln("Completed FullCheck() in "+parallelFullCheckSpeed.elapsed()+
+    " Beginning WriteFiles");
+      }
+    }
+  if R then serialWrite();
+  if T then ParaTime.stop();
+  if T {
+    if V {
+      writeln("Parallel FileCheck completed in " +
+  ParaTime.elapsed());
+      }
+    }
   }
 }
 // call everything in a mildly more organized way:
