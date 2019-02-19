@@ -53,7 +53,6 @@ All config --Flags:
 // serial options:
 config const SE : bool=false; // use serial evaluation?
 config const SP : bool=false; // use findfiles() as mastserDom method?
-config const S : bool=false; // short for normal serial evaluation
 
 // logging options
 config const V : bool=true; // Vebose output of actions?
