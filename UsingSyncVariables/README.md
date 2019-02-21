@@ -49,7 +49,6 @@ proc TaskToDo(i) {
 
 // iterate in a more organized way with sync$ in place:
 
-if SyncedParallelS_String {
 coforall i in listChars {
   TaskToDo(i);
 }
