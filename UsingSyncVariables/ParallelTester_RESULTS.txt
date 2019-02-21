@@ -1,0 +1,30 @@
+#
+#  These are my results so far:
+#
+#
+#
+\total time for 25 iterations was 12.629816770553589 the average runTime for ('./parallelTester4py', '--UnSyncedParallel_Int=true') options is
+\0.5051926708221436
+\ total:
+\12.629816770553589
+\total time for 25 iterations was 0.19491338729858398 the average runTime for ('./parallelTester4py', '--UnSyncedParallel_String=true') options is
+\0.00779653549194336
+\ total:
+\0.19491338729858398
+\total time for 25 iterations was 54.335121154785156 the average runTime for ('./parallelTester4py', '--SyncedParallel_Int=true') options is
+\2.1734048461914064
+\ total:
+\54.335121154785156
+\total time for 25 iterations was 0.20490765571594238 the average runTime for ('./parallelTester4py', '--SyncedParallelS_String=true') options is
+\0.008196306228637696
+\ total:
+\0.20490765571594238
+\total time for 25 iterations was 0.19944977760314941 the average runTime for ('./parallelTester4py', '--SerialLoop_Int=true') options is
+\0.007977991104125977
+\ total:
+\0.19944977760314941
+\total time for 25 iterations was 0.1912527084350586 the average runTime for ('./parallelTester4py', '--SerialLoop_String=true') options is
+\0.007650108337402344
+\ total:
+\0.1912527084350586
+\
