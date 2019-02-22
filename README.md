@@ -1,7 +1,8 @@
 # ChapelTests
 
-Repo in light of PSU OS course
+Investigating modern concurrent programming ideas with Chapel Language and Python 3
 
+Repo in light of PSU OS course :)
 
 # Test FileCheck.chpl from this repo:
 
@@ -9,32 +10,45 @@ Repo in light of PSU OS course
 
 git clone https://github.com/Jesssullivan/ChapelTests
 
-# compile FileCheck:
-
 cd ChapelTests/FileChecking-with-Chapel
+
+# compile fastest / most up to date script:
+
+chpl FileCheck2.chpl  # not annotated / no extra --args
+
+# compile all options (old sync method):
 
 chpl FileCheck.chpl
 
-# evaluate 3 different run times:
-
-cd ../ChapelTesting-Python3
+# evaluate 5 different run times:
 
 python3 Timer_FileCheck.py
 
 ```
 
-FileCheck.chpl provides both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  Both solutions will be “slow”, as they are fundamentally limited by disk speed.   Go to /FileChecking-with-Chapel/ for more information on this script.  Timer_FileCheck.py and other tests evaluate completion times for all Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
+These two FileCheck scripts provide both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  All solutions will be “slow”, as they are fundamentally limited by disk speed.
+
+Revision 2 uses standard sync$ variable form.
+
+ Use Timer_FileCheck.py to evaluate completion times for all Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
 
 To run:
 
 ```
 # In Parallel:
 chpl FileCheck.chpl && ./FileCheck
+# or:
+chpl FileCheck2.chpl && ./FileCheck2
+
 ```
 
 # Dealing with Dupes in Chapel
 
-This program will recursively run through all directories from where it starts and generates two text docs, one of same size, same file and another of same size, different file.  
+Generate three text docs:
+
+- Same size, same file another
+- Same size, different file
+- Same size, less than 8 bytes
 
 Please see the python3 evaluation scripts to run these options in a loop.  
 
@@ -70,35 +84,42 @@ config const DIFF = "DIFF"; // default name ID?
 
 # General notes:
 
-From inside FileCheck.chpl on use of classes - see below for snippets:
+From inside FileCheck2.chpl on updated sync$ syntax:
 
 ```
+//  Chapel-Language  //
 
-class Gate {
-  // class Gate is an explicit way to use sync variables in parallel nested loops.
-  // Gate is initialized with Gate.initGate()
-  var x$: sync bool;
-  var busy : atomic int;
-  // Note:  this init does note follow default initializer spec by Chapel
-  proc initGate() {
-    x$.writeXF(true);
-    busy.write(1);
+module Fs {
+  var MasterDom = {("", "")};  // contains same size files as (a,b).
+  var same = {("", "")};  // identical files
+  var diff = {("", "")};  // sorted files flagged as same size but are not identical
+  var sizeZero = {("", "")}; // sort files that are < 8 bytes
+}
+
+var sync1$ : sync bool;
+sync1$ = true;
+
+proc ParallelRun(a,b) {
+  if exists(a) && exists(b) && a != b {
+    if isFile(a) && isFile(b) {
+      if getFileSize(a) == getFileSize(b) {
+        sync1$;
+        Fs.MasterDom += (a,b);
+        sync1$ = true;
+        }
+        if getFileSize(a) < 8 && getFileSize(b) < 8 {
+          sync1$;
+          Fs.sizeZero += (a,b);
+          sync1$ = true;
+      }
+    }
   }
-  // lock will wait after atomic busy is 2.
-  // this seems redundant, however this far this has been
-  // the easiest to understand sync solution for this script
-  proc lock() {
-    do {
-      x$;
-      if debug then writeln("Gate is locked");
-      } while busy.read() != 1;
-      busy.write(2);
-  }
-  // open / reset lock:
-  proc openup() {
-    busy.write(1);
-    x$.writeXF(true);
-    if debug then writeln("Gate is open");
+}
+coforall folder in walkdirs(".") {
+  for a in findfiles(folder, recursive=false) {
+    for b in findfiles(folder, recursive=false) {
+      ParallelRun(a,b);
+    }
   }
 }
 
