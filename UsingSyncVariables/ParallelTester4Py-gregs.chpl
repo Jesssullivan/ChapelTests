@@ -32,9 +32,6 @@ coforall i in 1..numTasks {
 
 if verbose then {
   write("Following should be " + numTasks + ": ");
-  if useSync {
-    writeln(A.num$.readXX());
-  } else {
-    writeln(A.num);
-  }
+  if useSync then writeln(A.num$.readXX());
+  else writeln(A.num);
 }  
