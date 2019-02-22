@@ -24,15 +24,18 @@ module A {
 coforall i in 1..numTasks {
   var x : int;
   if useSync {
-    x = A.num$.readFE();   // wait until gain exclusive access to Num$
+    x = A.num$;
+    // x = A.num$.readFE();   // wait until gain exclusive access to Num$
     x = x + 1;
-    A.num$.writeXF(x);		// release sync var
+    A.num$ = x;			
+    //    A.num$.writeXF(x);		// release sync var
   } else {
     x = A.num;
     x = x + 1;
     A.num = x;
   }
 }
+
 if verbose then {
   write("Following should be " + numTasks + ": ");
   if useSync {
