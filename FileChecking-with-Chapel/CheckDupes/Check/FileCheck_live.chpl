@@ -1,7 +1,7 @@
 /**********************************
 * Parallel dupe checking in Chapel.
 * WIP by Jess Sullivan
-* Usage: chpl FileCheck2.chpl && ./FileCheck2
+* Usage: chpl FileCheck_live.chpl && ./FileCheck_live
 **********************************/
 use FileSystem;
 use Time;
