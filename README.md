@@ -16,7 +16,12 @@ The test uses $D for date: ```$D 09/14/19```
 ```
 //  Chapel-Language  //
 
-proc charCheck(aFile, ref choice, sep, sepRange) {
+// annotated snippet from /GenericTagIterator/nScan.chpl //
+
+proc charCheck(aFile, ref choice, sep, sepRange) { 
+
+    // note, reference argument (ref choice) is needed if using Chapel structure "module.domain"
+    
     try {
         var line : string;
         var tmp = openreader(aFile);
