@@ -1,0 +1,6 @@
+cool note file
+
+hello world
+$D 99/99/99other text
+
+cheese, vars, etc

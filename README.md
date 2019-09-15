@@ -2,127 +2,38 @@
 
 Investigating modern concurrent programming ideas with Chapel Language and Python 3
 
-Repo in light of PSU OS course :)
+**See here for dupe detection:**
+[/FileChecking-with-Chapel](https://github.com/Jesssullivan/ChapelTests/tree/master/FileChecking-with-Chapel)
 
-# Test FileCheck.chpl from this repo:
 
-```
+**Iterating through all files for custom tags / syntax:**
 
-git clone https://github.com/Jesssullivan/ChapelTests
+[/GenericTagIterator](https://github.com/Jesssullivan/ChapelTests/tree/master/GenericTagIterator)
 
-cd ChapelTests/FileChecking-with-Chapel
+added 9/14/19:
 
-# compile fastest / most up to date script:
+The thinking here is one could write a global, shorthand / tag-based note manager making use of an efficient tag gathering tool like the example here.  Gone would the days of actually needing a note manager- when the need presents itself, one could just add a calendar item, todo, etc with a global tag syntax.
 
-chpl FileCheck2.chpl  # not annotated / no extra --args
-
-# compile all options (old sync method):
-
-chpl FileCheck.chpl
-
-# evaluate 5 different run times:
-
-python3 Timer_FileCheck.py
-
-```
-
-These two FileCheck scripts provide both parallel and serial methods for recursive duplicate file finding in Cray’s Chapel Language.  All solutions will be “slow”, as they are fundamentally limited by disk speed.
-
-Revision 2 uses standard sync$ variable form.
-
- Use Timer_FileCheck.py to evaluate completion times for all Serial and parallel options.  Go to /ChapelTesting-Python3/ for more information on these tests.
-
-To run:
-
-```
-# In Parallel:
-chpl FileCheck.chpl && ./FileCheck
-# or:
-chpl FileCheck2.chpl && ./FileCheck2
-
-```
-
-# Dealing with Dupes in Chapel
-
-Generate three text docs:
-
-- Same size, same file another
-- Same size, different file
-- Same size, less than 8 bytes
-
-Please see the python3 evaluation scripts to run these options in a loop.  
-
-# --Flags:
-
-example:  
-```
-./FileCheck --V --T --debug
-```
-
-...Will run FileCheck with internal timers(--T), which will be displayed with the verbose logs(--V) and all extra debug logging(--debug) from within each loop.
-
-All config --Flags:
-
-```
-// serial options:
-config const SE : bool=false; // use serial evaluation?
-config const SP : bool=false; // use findfiles() as mastserDom method?
-
-// logging options
-config const V : bool=true; // Vebose output of actions?
-config const debug : bool=false;  // enable verbose logging from within loops?
-config const T : bool=true; // use internal Chapel timers?
-config const R : bool=true; // compile report file?
-
-// file options
-config const dir = "."; // start here?
-config const ext = ".txt";  // use alternative ext?
-config const SAME = "SAME";  // default name ID?
-config const DIFF = "DIFF"; // default name ID?
-
-```
-
-# General notes:
-
-From inside FileCheck2.chpl on updated sync$ syntax:
+The test uses $D for date: ```$D 09/14/19```
 
 ```
 //  Chapel-Language  //
 
-module Fs {
-  var MasterDom = {("", "")};  // contains same size files as (a,b).
-  var same = {("", "")};  // identical files
-  var diff = {("", "")};  // sorted files flagged as same size but are not identical
-  var sizeZero = {("", "")}; // sort files that are < 8 bytes
-}
-
-var sync1$ : sync bool;
-sync1$ = true;
-
-proc ParallelRun(a,b) {
-  if exists(a) && exists(b) && a != b {
-    if isFile(a) && isFile(b) {
-      if getFileSize(a) == getFileSize(b) {
-        sync1$;
-        Fs.MasterDom += (a,b);
-        sync1$ = true;
+proc charCheck(aFile, ref choice, sep, sepRange) {
+    try {
+        var line : string;
+        var tmp = openreader(aFile);
+        while(tmp.readline(line)) {
+            if line.find(sep) > 0 {
+                choice += line.split(sep)[sepRange];
+                if V then writeln('adding '+ sep + ' ' + line.split(sep)[sepRange]);
+            }
         }
-        if getFileSize(a) < 8 && getFileSize(b) < 8 {
-          sync1$;
-          Fs.sizeZero += (a,b);
-          sync1$ = true;
-      }
+    tmp.close();
+    } catch {
+      if V then writeln("caught err");
     }
-  }
 }
-coforall folder in walkdirs(".") {
-  for a in findfiles(folder, recursive=false) {
-    for b in findfiles(folder, recursive=false) {
-      ParallelRun(a,b);
-    }
-  }
-}
-
 ```
 
 # Get some Chapel:
