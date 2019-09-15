@@ -16,12 +16,24 @@ The test uses $D for date: ```$D 09/14/19```
 ```
 //  Chapel-Language  //
 
-// annotated snippet from /GenericTagIterator/nScan.chpl //
+// non-annotated file @ /GenericTagIterator/nScan.chpl //
 
-proc charCheck(aFile, ref choice, sep, sepRange) { 
+use FileSystem;
+use IO;
+use Time;
 
-    // note, reference argument (ref choice) is needed if using Chapel structure "module.domain"
+config const V : bool=true;  // verbose logging, currently default!
+
+module charMatches {
+  var dates = {("")};  
+}
+
+// var sync1$ : sync bool=true;  not used in example- TODO: add sync$ var back in!!
+
+proc charCheck(aFile, ref choice, sep, sepRange) {
     
+    // note, reference argument (ref choice) is needed if using Chapel structure "module.domain"
+
     try {
         var line : string;
         var tmp = openreader(aFile);
@@ -34,6 +46,12 @@ proc charCheck(aFile, ref choice, sep, sepRange) {
     tmp.close();
     } catch {
       if V then writeln("caught err");
+    }
+}
+
+coforall folder in walkdirs('check/') {
+    for file in findfiles(folder) {
+        charCheck(file, charMatches.dates, '$D ', 1..8);
     }
 }
 ```
