@@ -9,7 +9,7 @@ Investigating modern concurrent programming ideas with Chapel Language and Pytho
 
 added 9/14/19:
 
-The thinking here is one could write a global, shorthand / tag-based note manager making use of an efficient tag gathering tool like the example here.  Gone would the days of actually needing a note manager- when the need presents itself, one could just add a calendar item, todo, etc with a global tag syntax.
+The thinking here is one could write a global, shorthand / tag-based note manager making use of an efficient tag gathering tool like the example here.  Gone are the days of actually needing a note manager- when the need presents itself, one could just add a calendar item, todo, etc with a global tag syntax.
 
 The test uses $D for date: ```$D 09/14/19```
 
