@@ -2,13 +2,10 @@
 
 Investigating modern concurrent programming ideas with Chapel Language and Python 3
 
-**See here for dupe detection:**
-[/FileChecking-with-Chapel](https://github.com/Jesssullivan/ChapelTests/tree/master/FileChecking-with-Chapel)
+**See here for dupe detection:**  [/FileChecking-with-Chapel](https://github.com/Jesssullivan/ChapelTests/tree/master/FileChecking-with-Chapel)
 
 
-**Iterating through all files for custom tags / syntax:**
-
-[/GenericTagIterator](https://github.com/Jesssullivan/ChapelTests/tree/master/GenericTagIterator)
+**Iterating through all files for custom tags / syntax:**  [/GenericTagIterator](https://github.com/Jesssullivan/ChapelTests/tree/master/GenericTagIterator)
 
 added 9/14/19:
 
